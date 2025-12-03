@@ -2752,10 +2752,10 @@ const fetchEarthquakeData = async () => {
         const uniqueEarthquakesMap = new Map();
         for (const eq of filteredEarthquakes) {
             // 発生時刻と震源地名から安定したイベントキーを生成
-            const eventTime = eq.earthquake?.time; // ★基準を地震発生時刻に変更
-            const epicenterName = eq.earthquake?.hypocenter?.name;
+            const eventTime = eq.earthquake?.time;
+            const epicenterName = eq.earthquake?.hypocenter?.name; // オプショナルチェイニングで安全にアクセス
 
-            // ID生成に必要な情報がなければスキップ
+            // ★★★ 修正: ID生成に必要な情報がなければスキップ ★★★
             if (!eventTime || !epicenterName) continue; 
 
             const eventKey = `${eventTime}_${epicenterName}`;
@@ -2889,8 +2889,11 @@ const logPointsToSpreadsheet = (earthquakes) => {
 const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservationMap) => {
     // --- 安定したID生成ロジック ---
     const eqData = earthquake.earthquake;
-    const idSource = `${eqData.time}_${eqData.hypocenter.name}`; // ★基準を地震発生時刻に変更
+    // ★★★ 修正: hypocenterが存在しないケースに対応 ★★★
+    const epicenterName = eqData.hypocenter?.name || '不明';
+    const idSource = `${eqData.time}_${epicenterName}`;
     const syntheticId = await digestMessage(idSource);
+
     // -------------------------
 
     // API提供のeventidは津波情報の紐付けにのみ利用
@@ -2978,7 +2981,7 @@ const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservati
     return {
         id: syntheticId,
         time: formatDateTime(earthquake.earthquake.time), // ★表示も地震発生時刻に変更
-        epicenter: earthquake.earthquake.hypocenter.name || '不明',
+        epicenter: epicenterName, // ★★★ 修正 ★★★
         depth: earthquake.earthquake.hypocenter.depth, // 震源の深さを追加
         magnitude: magnitudeDisplay,
         tsunami: earthquake.earthquake.domesticTsunami, // 津波の有無を追加
