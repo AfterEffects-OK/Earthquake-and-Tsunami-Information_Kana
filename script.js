@@ -289,8 +289,11 @@ const getMunicipality = (addr, pref) => {
     const gunMatch = remainingAddr.match(/^.+?郡.+?(町|村)/);
     if (gunMatch) return `${pref}_${gunMatch[0]}`;
 
-     // パターン3: 「〇〇市」「〇〇区」「〇〇町」「〇〇村」 (例: 栃木市入舟町 -> 栃木市, 仙台宮城野区 -> 仙台宮城野区)
-    const cityTownVillageMatch = remainingAddr.match(/^.+?(市|区|町|村)/);
+    // パターン3: 「〇〇市」「〇〇区」「〇〇町」「〇〇村」 (例: 栃木市入舟町 -> 栃木市, 廿日市市 -> 廿日市市)
+    // 肯定後読みアサーションを使用して、「市」「区」「町」「村」の直前にある文字列を抽出
+    // これにより、「四日市市」のようなケースでも「四日市市」全体がマッチする
+    const cityTownVillageMatch = remainingAddr.match(/^.+?(?=[市区町村])/);
+
     if (cityTownVillageMatch) return `${pref}_${cityTownVillageMatch[0]}`;
 
     // どのパターンにもマッチしない場合は、元の観測点名を返す
