@@ -298,7 +298,7 @@ const getMunicipality = (addr, pref) => {
     if (gunMatch) return `${pref}_${gunMatch[0]}`;
 
     // パターン3: 「〇〇市」「〇〇区」「〇〇町」「〇〇村」 (例: 栃木市入舟町 -> 栃木市, 廿日市市 -> 廿日市市)
-    const cityTownVillageMatch = remainingAddr.match(/^.+(市|区|町|村)/);
+    const cityTownVillageMatch = remainingAddr.match(/^.+?(市|区|町|村)/);
 
     if (cityTownVillageMatch) return `${pref}_${cityTownVillageMatch[0]}`;
 
