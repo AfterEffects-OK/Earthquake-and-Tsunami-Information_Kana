@@ -3690,9 +3690,11 @@ const updateFixedBarDisplay = (overrideView = null, direction = 'none') => {
     const nextButton = document.getElementById('shindo-next');           // キャッシュ
     const pageInfo = document.getElementById('shindo-page-info');        // キャッシュ
 
-    if (fixedBarState.views.length === 0 && !overrideView) return;
+    // ★★★ 修正: 古い変数名 `fixedBarState` を `FIXED_BAR_VIEWS` に修正 ★★★
+    if (FIXED_BAR_VIEWS.length === 0 && !overrideView) return;
 
-    const currentView = overrideView || fixedBarState.views[fixedBarState.currentIndex];
+    // ★★★ 修正: 古い変数名 `fixedBarState` を `FIXED_BAR_VIEWS` と `CURRENT_SHINDO_INDEX` に修正 ★★★
+    const currentView = overrideView || FIXED_BAR_VIEWS[CURRENT_SHINDO_INDEX];
 
     const transitionEffect = document.getElementById('transition-effect').value;
 
