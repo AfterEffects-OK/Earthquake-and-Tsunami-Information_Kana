@@ -3634,21 +3634,25 @@ const updateFixedShindoBar = (eq) => {
         let pageCities = [];
 
         for (let i = 0; i < cities.length; i++) {
-            const testCities = [...pageCities, cities[i]];
+            // ★★★ 修正: 表示用に市区町村名のみを抽出する ★★★
+            const cityName = cities[i].includes('_') ? cities[i].split('_')[1] : cities[i];
+            const testCities = [...pageCities, cityName];
             const testHtml = testCities.map(c => `<span class="inline-block">${c}</span>`).join('　');
 
             if (!doesTextFitInTwoLines(testHtml, contentLine1) && pageCities.length > 0) {
                 // 収まらなくなったので、直前までの内容でページを作成
+                // ★★★ 修正: pageCitiesには既に整形済みの名前が入っている ★★★
                 const pageHtml = pageCities.map(c => `<span class="inline-block">${c}</span>`).join('　');
                 FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: group.shindo, line1: pageHtml, line2: '', shindoClass: shindoLabelToClass(group.shindo) });
                 // 新しいページを開始
-                pageCities = [cities[i]];
+                pageCities = [cityName];
             } else {
-                pageCities.push(cities[i]);
+                pageCities.push(cityName);
             }
         }
         // ループ終了後、残りの市区町村で最後のページを作成
         if (pageCities.length > 0) {
+            // ★★★ 修正: pageCitiesには既に整形済みの名前が入っている ★★★
             const pageHtml = pageCities.map(c => `<span class="inline-block">${c}</span>`).join('　');
             FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: group.shindo, line1: pageHtml, line2: '', shindoClass: shindoLabelToClass(group.shindo) });
         }
