@@ -245,7 +245,12 @@
                 <button id="add-kana-button" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition">追加 / 更新</button>
             </div>
 
-            <div class="flex justify-end mt-6 flex-shrink-0 space-x-3">
+            <div class="flex justify-between items-center mt-6 flex-shrink-0">
+                <div class="space-x-3">
+                    <button id="export-kana-button" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">エクスポート</button>
+                    <input type="file" id="import-kana-file-input" class="hidden" accept=".json">
+                    <button id="import-kana-button" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">インポート</button>
+                </div>
                 <button id="kana-db-modal-close" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">キャンセル</button>
                 <button id="kana-db-modal-save" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">保存して閉じる</button>
             </div>

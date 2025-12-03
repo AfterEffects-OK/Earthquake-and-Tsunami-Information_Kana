@@ -3996,6 +3996,12 @@ const setupKanaDbModal = () => {
     kanaKeyInput = keyInput;
     kanaValueInput = valueInput;
     
+    // ★★★ 修正: モーダルを開くイベントリスナーを追加 ★★★
+    openButton.addEventListener('click', () => {
+        renderManualKanaList();
+        modal.classList.remove('hidden');
+    });
+
     // モーダルを閉じる（保存しない）
     closeButton.addEventListener('click', () => {
         // 保存されていない変更を破棄するために、ローカルストレージから再読み込み
