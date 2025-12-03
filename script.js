@@ -3165,6 +3165,22 @@ const displayEarthquakeDetails = (eq) => {
     // 現在のDISPLAY_MODEに基づいてデータをグループ化
     const shindoByMode = groupPointsByShindoAndMode(eq.points, DISPLAY_MODE, CONFIG.MIN_DETAIL_SCALE);
 
+    // ★★★ 追加: ふりがな不明の市区町村を手動辞書に自動登録する ★★★
+    if (DISPLAY_MODE === 'municipality') {
+        let dictionaryUpdated = false;
+        shindoByMode.forEach(item => {
+            item.cities.forEach(cityKey => { // cityKeyは "都道府県名_市区町村名" の形式
+                const kana = getKana(cityKey);
+                // ふりがながなく、手動辞書にも未登録の場合
+                if (!kana && MANUAL_KANA_DICT[cityKey] === undefined && !cityKey.includes('不明')) {
+                    MANUAL_KANA_DICT[cityKey] = ''; // 空の値で登録
+                    dictionaryUpdated = true;
+                    console.log(`ふりがな不明の市区町村を辞書候補に追加: ${cityKey}`);
+                }
+            });
+        });
+    }
+
     // 詳細セクションの震度別リストを生成
     const detailList = shindoByMode.map(item => {
         // ★★★ 修正: 市区町村モードの場合にふりがな付きのHTMLを生成 ★★★
