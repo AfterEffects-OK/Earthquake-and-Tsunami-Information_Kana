@@ -88,7 +88,13 @@ let loopPlaybackMinScale = 30; // デフォルトは震度3以上
  */
 const getKana = (kanji) => {
     if (!kanji) return '';
-    const kana = KANA_DICT[kanji] || KANA_DICT[kanji.replace(/（.+?）/g, '')] || ''; // "（" 以降を削除しても検索
+
+    // "都道府県名_市区町村名" の形式を想定
+    const parts = kanji.split('_');
+    const municipality = parts.length > 1 ? parts[1] : parts[0];
+
+    // 辞書検索
+    const kana = KANA_DICT[municipality] || KANA_DICT[municipality.replace(/（.+?）/g, '')] || ''; // "（" 以降を削除しても検索
     return katakanaToHiragana(kana);
 };
 
@@ -244,51 +250,51 @@ const digestMessage = async (message) => {
 /**
  * 観測点名から市町村名（政令指定都市の区まで含む）を抽出する
  * @param {string} addr - 観測点名 (point.addr)
- * @returns {string} 集約された市町村名（区まで含む）
+ * @param {string} pref - 都道府県名 (point.pref)
+ * @returns {string} "都道府県名_市区町村名" の形式の文字列
  */
-const getMunicipality = (addr) => {
-    if (!addr) return '観測点名不明';
+const getMunicipality = (addr, pref) => {
+    if (!addr || !pref) return `${pref || '不明'}_${addr || '観測点名不明'}`;
 
     // 北海道の支庁名などに対応するため、都道府県名除去前のフルアドレスでまず検索
     // 例: 「北海道釧路市」-> 辞書に「釧路市」があればそれを使う
     const directMatch = Object.keys(KANA_DICT).find(key => addr.includes(key) && (addr.endsWith(key) || addr.includes(key + ' ')));
     if (directMatch) {
-        return directMatch;
+        // マッチした場合でも、都道府県名を付けて返す
+        return `${pref}_${directMatch}`;
     }
 
      let remainingAddr = addr;
 
     // 1. 都道府県名を先に除去する
-    if (remainingAddr.startsWith('東京都')) {
-        remainingAddr = remainingAddr.substring(3);
-    } else if (remainingAddr.startsWith('北海道')) {
-        remainingAddr = remainingAddr.substring(3);
-    } else if (remainingAddr.startsWith('京都府')) {
-        remainingAddr = remainingAddr.substring(3);
-    } else if (remainingAddr.startsWith('大阪府')) {
-        remainingAddr = remainingAddr.substring(3);
-    } else {
-         // その他の県の場合
+     if (remainingAddr.startsWith(pref)) {
+        remainingAddr = remainingAddr.substring(pref.length);
+     } else {
+         // 都道府県名で始まらない場合（例: 「仙台市宮城野区」）、他の都道府県名も除去してみる
+         const prefs = ['東京都', '北海道', '京都府', '大阪府'];
+         prefs.forEach(p => {
+             if (remainingAddr.startsWith(p)) remainingAddr = remainingAddr.substring(p.length);
+         });
          const prefIndex = remainingAddr.indexOf('県');
          if (prefIndex !== -1) {
-            remainingAddr = remainingAddr.substring(prefIndex + 1);
-        }
-    }
+             remainingAddr = remainingAddr.substring(prefIndex + 1);
+         }
+     }
 
      // パターン1: 「〇〇市〇〇区」を優先的にマッチ (例: 仙台市宮城野区)
     const cityAndWardMatch = remainingAddr.match(/^.+?市.+?区/);
-    if (cityAndWardMatch) return cityAndWardMatch[0];
+    if (cityAndWardMatch) return `${pref}_${cityAndWardMatch[0]}`;
 
      // パターン2: 「〇〇郡〇〇町/村」の場合、郡名と町村名を抽出 (例: 北海道空知郡南幌町 -> 空知郡南幌町)
     const gunMatch = remainingAddr.match(/^.+?郡.+?(町|村)/);
-    if (gunMatch) return gunMatch[0];
+    if (gunMatch) return `${pref}_${gunMatch[0]}`;
 
      // パターン3: 「〇〇市」「〇〇区」「〇〇町」「〇〇村」 (例: 栃木市入舟町 -> 栃木市, 仙台宮城野区 -> 仙台宮城野区)
     const cityTownVillageMatch = remainingAddr.match(/^.+?(市|区|町|村)/);
-    if (cityTownVillageMatch) return cityTownVillageMatch[0];
+    if (cityTownVillageMatch) return `${pref}_${cityTownVillageMatch[0]}`;
 
     // どのパターンにもマッチしない場合は、元の観測点名を返す
-    return addr;
+    return `${pref}_${addr}`;
 };
 
 
@@ -3042,7 +3048,7 @@ const groupPointsByShindoAndMode = (rawPoints, mode, minScale) => {
             
             let name;
             if (mode === 'municipality') {
-                name = getMunicipality(point.addr); // 市区町村名に絞り込み（区まで含む）
+                name = getMunicipality(point.addr, point.pref); // 市区町村名に絞り込み（区まで含む）
             } else {
                 name = point.addr || '観測点名不明'; // 観測点名全体
             }
@@ -3137,12 +3143,13 @@ const displayEarthquakeDetails = (eq) => {
         // ★★★ 修正: 市区町村モードの場合にふりがな付きのHTMLを生成 ★★★
         const citiesHtml = item.cities.map(city => {
             if (DISPLAY_MODE === 'municipality') {
-                const kana = getKana(city);
+                const [pref, municipality] = city.split('_');
+                const kana = getKana(city); // getKanaは "pref_city" 形式を処理できる
                 // ふりがな用のdivと地名用のspanを一つのブロックとして扱う
                 return `
                     <div class="inline-block text-center mx-1 mb-2 align-bottom">
                         <div class="text-xs text-gray-300" style="height: 1em;">${kana || '&nbsp;'}</div>
-                        <span class="font-semibold">${city}</span>
+                        <span class="font-semibold">${municipality}</span>
                     </div>
                 `;
             } else {
