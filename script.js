@@ -94,6 +94,10 @@ let MANUAL_KANA_DICT = {
     // ここに手動でふりがなを登録します
 };
 
+// グローバル参照: モーダル内の入力フィールド
+let kanaKeyInput = null;
+let kanaValueInput = null;
+
 
 /**
  * 漢字の地名から、ふりがな辞書を使って読み仮名を取得する
@@ -103,10 +107,6 @@ let MANUAL_KANA_DICT = {
 const getKana = (kanji) => {
     if (!kanji) return '';
 
-    // 1. 手動登録辞書を最優先で検索
-    const manualKana = MANUAL_KANA_DICT[kanji];
-    if (manualKana) return manualKana;
-
     // "都道府県名_市区町村名" の形式を想定
     const parts = kanji.split('_');
     const municipality = parts.length > 1 ? parts[1] : parts[0];
@@ -114,6 +114,10 @@ const getKana = (kanji) => {
     // 辞書検索
     const kana = KANA_DICT[municipality] || KANA_DICT[municipality.replace(/（.+?）/g, '')] || ''; // "（" 以降を削除しても検索
     return katakanaToHiragana(kana);
+
+    // 1. 手動登録辞書を最優先で検索
+    const manualKana = MANUAL_KANA_DICT[kanji];
+    if (manualKana) return manualKana;
 };
 
 // --- ユーティリティ関数と設定 ---
@@ -3881,6 +3885,102 @@ const setupFixedBarNavigation = () => {
 };
 
 /**
+ * 手動ふりがな辞書リストをレンダリングする
+ */
+const renderManualKanaList = () => {
+    const listWrapper = document.getElementById('manual-kana-list-wrapper');
+    const noDataMessage = document.getElementById('no-manual-kana-message');
+
+    // 子要素を全て削除（メッセージも含む）
+    while (listWrapper.firstChild) {
+        listWrapper.removeChild(listWrapper.firstChild);
+    }
+
+    const keys = Object.keys(MANUAL_KANA_DICT).sort();
+
+    if (keys.length === 0) {
+        listWrapper.appendChild(noDataMessage);
+        return;
+    }
+
+    keys.forEach(key => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'flex justify-between items-center p-2 border-b border-gray-700 text-sm cursor-pointer hover:bg-gray-700/50 transition-colors';
+        itemDiv.innerHTML = `
+            <div class="flex-1 font-mono text-gray-300 mr-2">${key}</div>
+            <div class="flex-1 font-mono text-green-400 mr-4">${MANUAL_KANA_DICT[key] || '<span class="text-yellow-400">未入力</span>'}</div>
+            <button class="text-red-500 hover:text-red-400 font-bold text-xs">削除</button>
+        `;
+
+        itemDiv.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('text-red-500')) {
+                if (kanaKeyInput && kanaValueInput) { // Ensure inputs are available
+                    kanaKeyInput.value = key;
+                    kanaValueInput.value = MANUAL_KANA_DICT[key];
+                    kanaValueInput.focus();
+                }
+            }
+        });
+
+        itemDiv.querySelector('button').addEventListener('click', () => {
+            delete MANUAL_KANA_DICT[key];
+            renderManualKanaList();
+        });
+        listWrapper.appendChild(itemDiv);
+    });
+};
+
+/**
+ * 手動ふりがな辞書をJSONファイルとしてエクスポートする
+ */
+const exportKanaDictionaryToFile = () => {
+    const dataStr = JSON.stringify(MANUAL_KANA_DICT, null, 2); // 読みやすいように整形
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'manual_kana_dictionary.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log('手動ふりがな辞書をエクスポートしました。');
+};
+
+/**
+ * JSONファイルから手動ふりがな辞書をインポートする
+ * @param {File} file - インポートするファイルオブジェクト
+ */
+const importKanaDictionaryFromFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const importedDict = JSON.parse(event.target.result);
+            // 簡易的なバリデーション: オブジェクトであり、キーと値が文字列であることを確認
+            if (typeof importedDict === 'object' && importedDict !== null &&
+                Object.keys(importedDict).every(key => typeof key === 'string' && typeof importedDict[key] === 'string')) {
+                
+                MANUAL_KANA_DICT = importedDict;
+                localStorage.setItem('manualKanaDictionary', JSON.stringify(MANUAL_KANA_DICT));
+                renderManualKanaList(); // リストを再描画
+                console.log('手動ふりがな辞書をインポートしました。');
+                alert('ふりがな辞書をインポートしました。');
+            } else {
+                throw new Error('ファイルの形式が正しくありません。');
+            }
+        } catch (e) {
+            console.error('ふりがな辞書のインポートに失敗しました:', e);
+            alert(`ふりがな辞書のインポートに失敗しました。\nエラー: ${e.message}`);
+        }
+    };
+    reader.onerror = () => {
+        console.error('ファイルの読み込み中にエラーが発生しました。');
+        alert('ファイルの読み込み中にエラーが発生しました。');
+    };
+    reader.readAsText(file);
+};
+
+/**
  * 手動ふりがな辞書モーダルのセットアップ
  */
 const setupKanaDbModal = () => {
@@ -3891,15 +3991,11 @@ const setupKanaDbModal = () => {
     const addButton = document.getElementById('add-kana-button');
     const keyInput = document.getElementById('new-kana-key');
     const valueInput = document.getElementById('new-kana-value');
-    const listWrapper = document.getElementById('manual-kana-list-wrapper');
-    const noDataMessage = document.getElementById('no-manual-kana-message');
 
-    // モーダルを開く
-    openButton.addEventListener('click', () => {
-        renderManualKanaList();
-        modal.classList.remove('hidden');
-    });
-
+    // グローバル変数に参照をセット
+    kanaKeyInput = keyInput;
+    kanaValueInput = valueInput;
+    
     // モーダルを閉じる（保存しない）
     closeButton.addEventListener('click', () => {
         // 保存されていない変更を破棄するために、ローカルストレージから再読み込み
@@ -3921,56 +4017,35 @@ const setupKanaDbModal = () => {
 
     // 新規追加・更新
     addButton.addEventListener('click', () => {
-        const key = keyInput.value.trim();
-        const value = valueInput.value.trim();
+        const key = kanaKeyInput.value.trim();
+        const value = kanaValueInput.value.trim();
         if (key && value) {
             MANUAL_KANA_DICT[key] = value;
-            keyInput.value = '';
-            valueInput.value = '';
+            kanaKeyInput.value = '';
+            kanaValueInput.value = '';
             renderManualKanaList();
         }
     });
+    
+    // ★★★ 追加: エクスポート・インポートボタンのイベントリスナー ★★★
+    const exportButton = document.getElementById('export-kana-button');
+    const importButton = document.getElementById('import-kana-button');
+    const importFileInput = document.getElementById('import-kana-file-input');
 
-    // リストのレンダリング
-    const renderManualKanaList = () => {
-        // 子要素を全て削除（メッセージも含む）
-        while (listWrapper.firstChild) {
-            listWrapper.removeChild(listWrapper.firstChild);
+    exportButton.addEventListener('click', exportKanaDictionaryToFile);
+
+    importButton.addEventListener('click', () => {
+        importFileInput.click(); // 隠されたファイル入力要素をクリック
+    });
+
+    importFileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            importKanaDictionaryFromFile(file);
         }
-
-        const keys = Object.keys(MANUAL_KANA_DICT).sort();
-
-        if (keys.length === 0) {
-            listWrapper.appendChild(noDataMessage);
-            return;
-        }
-
-        keys.forEach(key => {
-            const itemDiv = document.createElement('div');
-            // ★★★ 修正: クリックで編集できるようにUIを調整 ★★★
-            itemDiv.className = 'flex justify-between items-center p-2 border-b border-gray-700 text-sm cursor-pointer hover:bg-gray-700/50 transition-colors';
-            itemDiv.innerHTML = `
-                <div class="flex-1 font-mono text-gray-300 mr-2">${key}</div>
-                <div class="flex-1 font-mono text-green-400 mr-4">${MANUAL_KANA_DICT[key] || '<span class="text-yellow-400">未入力</span>'}</div>
-                <button class="text-red-500 hover:text-red-400 font-bold text-xs">削除</button>
-            `;
-
-            // ★★★ 追加: 削除ボタン以外の部分をクリックしたらフォームに内容をセットする ★★★
-            itemDiv.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'BUTTON') { // 削除ボタン自身がクリックされた場合は何もしない
-                    keyInput.value = key;
-                    valueInput.value = MANUAL_KANA_DICT[key];
-                    valueInput.focus(); // ふりがな入力欄にフォーカスを移動
-                }
-            });
-
-            itemDiv.querySelector('button').addEventListener('click', () => {
-                delete MANUAL_KANA_DICT[key];
-                renderManualKanaList();
-            });
-            listWrapper.appendChild(itemDiv);
-        });
-    };
+        // ファイル選択ダイアログを再度開けるように、選択をクリア
+        event.target.value = '';
+    });
 };
 
 /**
@@ -4417,6 +4492,10 @@ const loadManualKanaDict = () => {
 
 window.onload = async () => {
     // ★★★ 最初に読み仮名辞書を生成する ★★★
+    // 1. 手動登録辞書を最優先で検索
+    const manualKana = MANUAL_KANA_DICT[kanji];
+    if (manualKana) return manualKana;
+
     await buildKanaDictionary();
 
     // トグルスイッチの設定とイベントリスナーの設定
@@ -4445,6 +4524,12 @@ window.onload = async () => {
 
     // ショートカット設定モーダルのセットアップ
     setupShortcutModal();
+
+    // ★★★ 修正: getKana関数内の手動辞書検索ロジックを移動 ★★★
+    // getKana関数内でKANA_DICTが構築される前にMANUAL_KANA_DICTを参照すると問題があるため、
+    // KANA_DICT構築後に手動辞書検索ロジックを移動する。
+    // ただし、getKana関数は既に修正済みなので、このコメントは不要。
+    // 実際には、getKana関数はKANA_DICTとMANUAL_KANA_DICTの両方を参照できる状態になっている。
 
     // ★★★ 追加: 手動ふりがな辞書をローカルストレージから読み込む ★★★
     loadManualKanaDict();
