@@ -1,5 +1,5 @@
 # 地震・津波情報トラッカー 仕様書・操作マニュアル
-https://aftereffects-ok.github.io/Earthquake-and-Tsunami-Information/
+https://aftereffects-ok.github.io/Earthquake-and-Tsunami-Information_Kana/
 
 ## 1. アプリケーション概要
 
