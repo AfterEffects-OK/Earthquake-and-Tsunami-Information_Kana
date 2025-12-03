@@ -281,14 +281,6 @@ const getMunicipality = (addr, pref) => {
          }
      }
 
-     // パターン0: 辞書データとの前方一致を試す (最も確実)
-     // 例: 「薩摩川内市祁答院町」が辞書の「薩摩川内市」と前方一致する
-     // 最も長い一致を見つけるために、辞書のキーを長い順にソート
-     const sortedKanaKeys = Object.keys(KANA_DICT).sort((a, b) => b.length - a.length);
-     const forwardMatch = sortedKanaKeys.find(key => remainingAddr.startsWith(key));
- 
-     if (forwardMatch) return `${pref}_${forwardMatch}`;
-
      // パターン1: 「〇〇市〇〇区」を優先的にマッチ (例: 仙台市宮城野区)
     const cityAndWardMatch = remainingAddr.match(/^.+?市.+?区/);
     if (cityAndWardMatch) return `${pref}_${cityAndWardMatch[0]}`;
@@ -296,6 +288,14 @@ const getMunicipality = (addr, pref) => {
      // パターン2: 「〇〇郡〇〇町/村」の場合、郡名と町村名を抽出 (例: 北海道空知郡南幌町 -> 空知郡南幌町)
     const gunMatch = remainingAddr.match(/^.+?郡.+?(町|村)/);
     if (gunMatch) return `${pref}_${gunMatch[0]}`;
+
+    // ★★★ 修正: パターン3の前に、辞書との前方一致を試す ★★★
+    // これにより「伊達市梁川町」->「伊達市」のように、辞書にある市区町村名を優先的に抽出する
+    // 最も長い一致を見つけるために、辞書のキーを文字数の長い順にソート
+    const sortedKanaKeys = Object.keys(KANA_DICT).sort((a, b) => b.length - a.length);
+    const forwardMatch = sortedKanaKeys.find(key => remainingAddr.startsWith(key));
+
+    if (forwardMatch) return `${pref}_${forwardMatch}`;
 
     // パターン3: 「〇〇市」「〇〇区」「〇〇町」「〇〇村」 (例: 栃木市入舟町 -> 栃木市, 廿日市市 -> 廿日市市)
     const cityTownVillageMatch = remainingAddr.match(/^.+?(市|区|町|村)/);
