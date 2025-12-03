@@ -80,6 +80,20 @@ let shortcutSetting = {
 let loopPlaybackMinScale = 30; // デフォルトは震度3以上
 // ------------------------------------
 
+/**
+ * 手動でふりがなを登録するための辞書（データベース）
+ * キー: "都道府県名_市区町村名"
+ * 値: "ひらがな"
+ * 
+ * 例:
+ * "福岡県_福岡市早良区": "ふくおかしさわらく",
+ * "宮崎県_都農町": "つのちょう",
+ * "福島県_伊達市": "だてし",
+ */
+const MANUAL_KANA_DICT = {
+    // ここに手動でふりがなを登録します
+};
+
 
 /**
  * 漢字の地名から、ふりがな辞書を使って読み仮名を取得する
@@ -88,6 +102,10 @@ let loopPlaybackMinScale = 30; // デフォルトは震度3以上
  */
 const getKana = (kanji) => {
     if (!kanji) return '';
+
+    // 1. 手動登録辞書を最優先で検索
+    const manualKana = MANUAL_KANA_DICT[kanji];
+    if (manualKana) return manualKana;
 
     // "都道府県名_市区町村名" の形式を想定
     const parts = kanji.split('_');
