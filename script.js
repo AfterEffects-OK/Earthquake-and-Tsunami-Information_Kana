@@ -3792,7 +3792,8 @@ const updateNavControls = (currentView, overrideView) => {
         pageInfo.textContent = '地震 受信中';
         pageInfo.classList.remove('hidden');
     } else if (overrideView) {
-        // システムメッセージ表示中はページ情報を書き換え
+        // ★★★ 修正: currentViewが存在しないケースに対応 ★★★
+        // システムメッセージ表示中はページ情報を書き換え (例: 地震情報 開始)
         pageInfo.textContent = `${currentView.pageCurrent}${currentView.pageTotal}`;
         pageInfo.classList.remove('hidden');
     } else if (currentView.pageTotal > 1) {
