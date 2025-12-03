@@ -3142,7 +3142,7 @@ const displayEarthquakeDetails = (eq) => {
                 // ふりがな用のdivと地名用のspanを一つのブロックとして扱う
                 return `
                     <div class="inline-block text-center mx-1 mb-2 align-bottom">
-                        <div class="text-xs text-gray-400" style="height: 1em;">${kana || '&nbsp;'}</div>
+                        <div class="text-xs text-gray-300" style="height: 1em;">${kana || '&nbsp;'}</div>
                         <span class="font-semibold">${city}</span>
                     </div>
                 `;
