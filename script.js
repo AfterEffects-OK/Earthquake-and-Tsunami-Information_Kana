@@ -247,44 +247,48 @@ const digestMessage = async (message) => {
  * @returns {string} 集約された市町村名（区まで含む）
  */
 const getMunicipality = (addr) => {
-     if (!addr) return '観測点名不明';
+    if (!addr) return '観測点名不明';
+
+    // 北海道の支庁名などに対応するため、都道府県名除去前のフルアドレスでまず検索
+    // 例: 「北海道釧路市」-> 辞書に「釧路市」があればそれを使う
+    const directMatch = Object.keys(KANA_DICT).find(key => addr.includes(key) && (addr.endsWith(key) || addr.includes(key + ' ')));
+    if (directMatch) {
+        return directMatch;
+    }
 
      let remainingAddr = addr;
 
-     // 1. 都道府県名を先に除去する
-     if (remainingAddr.startsWith('東京都')) {
+    // 1. 都道府県名を先に除去する
+    if (remainingAddr.startsWith('東京都')) {
         remainingAddr = remainingAddr.substring(3);
-     } else if (remainingAddr.startsWith('北海道')) {
+    } else if (remainingAddr.startsWith('北海道')) {
         remainingAddr = remainingAddr.substring(3);
-     } else if (remainingAddr.startsWith('京都府')) {
+    } else if (remainingAddr.startsWith('京都府')) {
         remainingAddr = remainingAddr.substring(3);
-     } else if (remainingAddr.startsWith('大阪府')) {
+    } else if (remainingAddr.startsWith('大阪府')) {
         remainingAddr = remainingAddr.substring(3);
-     } else {
+    } else {
          // その他の県の場合
          const prefIndex = remainingAddr.indexOf('県');
          if (prefIndex !== -1) {
             remainingAddr = remainingAddr.substring(prefIndex + 1);
-         }
-     }
+        }
+    }
 
      // パターン1: 「〇〇市〇〇区」を優先的にマッチ (例: 仙台市宮城野区)
-     const cityAndWardMatch = remainingAddr.match(/^.+?市.+?区/);
-     if (cityAndWardMatch) return cityAndWardMatch[0];
-     if (cityAndWardMatch) {
-         return cityAndWardMatch[0];
-     }
+    const cityAndWardMatch = remainingAddr.match(/^.+?市.+?区/);
+    if (cityAndWardMatch) return cityAndWardMatch[0];
 
-     // パターン2: 「〇〇郡〇〇町/村」の場合、町/村のみを抽出　(例: 北海道空知郡南幌町 -> 空知郡南幌町)
-     const gunMatch = remainingAddr.match(/^.+?郡(.+?(町|村))/);
-     if (gunMatch && gunMatch[1]) return gunMatch[1];
+     // パターン2: 「〇〇郡〇〇町/村」の場合、郡名と町村名を抽出 (例: 北海道空知郡南幌町 -> 空知郡南幌町)
+    const gunMatch = remainingAddr.match(/^.+?郡.+?(町|村)/);
+    if (gunMatch) return gunMatch[0];
 
      // パターン3: 「〇〇市」「〇〇区」「〇〇町」「〇〇村」 (例: 栃木市入舟町 -> 栃木市, 仙台宮城野区 -> 仙台宮城野区)
-     const cityTownVillageMatch = remainingAddr.match(/^.+?(市|区|町|村)/);
-     if (cityTownVillageMatch) return cityTownVillageMatch[0];
+    const cityTownVillageMatch = remainingAddr.match(/^.+?(市|区|町|村)/);
+    if (cityTownVillageMatch) return cityTownVillageMatch[0];
 
-     // どのパターンにもマッチしない場合は、元の観測点名を返す
-     return addr;
+    // どのパターンにもマッチしない場合は、元の観測点名を返す
+    return addr;
 };
 
 
