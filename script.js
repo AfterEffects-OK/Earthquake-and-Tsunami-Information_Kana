@@ -3171,14 +3171,19 @@ const displayEarthquakeDetails = (eq) => {
         shindoByMode.forEach(item => {
             item.cities.forEach(cityKey => { // cityKeyは "都道府県名_市区町村名" の形式
                 const kana = getKana(cityKey);
-                // ふりがながなく、手動辞書にも未登録の場合
-                if (!kana && MANUAL_KANA_DICT[cityKey] === undefined && !cityKey.includes('不明')) {
+                // ふりがながなく、手動辞書にキーが存在しないか、値が空の場合
+                if (!kana && (MANUAL_KANA_DICT[cityKey] === undefined || MANUAL_KANA_DICT[cityKey] === '') && !cityKey.includes('不明')) {
                     MANUAL_KANA_DICT[cityKey] = ''; // 空の値で登録
                     dictionaryUpdated = true;
                     console.log(`ふりがな不明の市区町村を辞書候補に追加: ${cityKey}`);
                 }
             });
         });
+
+        // 辞書が更新された場合、ローカルストレージに保存する
+        if (dictionaryUpdated) {
+            localStorage.setItem('manualKanaDictionary', JSON.stringify(MANUAL_KANA_DICT));
+        }
     }
 
     // 詳細セクションの震度別リストを生成
