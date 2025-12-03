@@ -281,6 +281,14 @@ const getMunicipality = (addr, pref) => {
          }
      }
 
+     // パターン0: 辞書データとの前方一致を試す (最も確実)
+     // 例: 「薩摩川内市祁答院町」が辞書の「薩摩川内市」と前方一致する
+     // 最も長い一致を見つけるために、辞書のキーを長い順にソート
+     const sortedKanaKeys = Object.keys(KANA_DICT).sort((a, b) => b.length - a.length);
+     const forwardMatch = sortedKanaKeys.find(key => remainingAddr.startsWith(key));
+ 
+     if (forwardMatch) return `${pref}_${forwardMatch}`;
+
      // パターン1: 「〇〇市〇〇区」を優先的にマッチ (例: 仙台市宮城野区)
     const cityAndWardMatch = remainingAddr.match(/^.+?市.+?区/);
     if (cityAndWardMatch) return `${pref}_${cityAndWardMatch[0]}`;
