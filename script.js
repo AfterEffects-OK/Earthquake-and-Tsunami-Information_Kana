@@ -3134,22 +3134,36 @@ const displayEarthquakeDetails = (eq) => {
     const shindoByMode = groupPointsByShindoAndMode(eq.points, DISPLAY_MODE, CONFIG.MIN_DETAIL_SCALE);
 
     // 詳細セクションの震度別リストを生成
-    const detailList = shindoByMode.map(item => `
-        <!-- ダークモード対応: bg-gray-50 -> bg-gray-700, border-gray-100 -> border-gray-600 -->
-        <div class="mb-4 p-4 bg-gray-700 rounded-lg border border-gray-600">
-            <div class="flex items-center mb-2">
-                <!-- 震度ラベル -->
-                <span class="shindo-badge ${shindoLabelToClass(item.shindo)} text-base">${item.shindo}</span>
-                <!-- 地域数を表示する元の記述を復元 -->
-                <span class="text-sm text-gray-400 ml-4">（${item.cities.length} 地域）</span>
+    const detailList = shindoByMode.map(item => {
+        // ★★★ 修正: 市区町村モードの場合にふりがな付きのHTMLを生成 ★★★
+        const citiesHtml = item.cities.map(city => {
+            if (DISPLAY_MODE === 'municipality') {
+                const kana = getKana(city);
+                // ふりがな用のdivと地名用のspanを一つのブロックとして扱う
+                return `
+                    <div class="inline-block text-center mx-1 mb-2 align-bottom">
+                        <div class="text-xs text-gray-400" style="height: 1em;">${kana || '&nbsp;'}</div>
+                        <span class="font-semibold">${city}</span>
+                    </div>
+                `;
+            } else {
+                // 観測点モードの場合はこれまで通り
+                return `<span class="inline-block">${city}</span>`;
+            }
+        }).join(DISPLAY_MODE === 'municipality' ? '' : '　');
+
+        return `
+            <div class="mb-4 p-4 bg-gray-700 rounded-lg border border-gray-600">
+                <div class="flex items-center mb-2">
+                    <span class="shindo-badge ${shindoLabelToClass(item.shindo)} text-base">${item.shindo}</span>
+                    <span class="text-sm text-gray-400 ml-4">（${item.cities.length} 地域）</span>
+                </div>
+                <p class="text-lg text-gray-200 leading-relaxed pt-2 mt-2 border-t border-gray-600 city-list-no-break">
+                    ${citiesHtml}
+                </p>
             </div>
-            <!-- 市町村名/観測点名 -->
-            <!-- city-list-no-break クラスを追加して、単語内改行を防ぐ -->
-            <p class="text-lg font-semibold text-gray-200 leading-relaxed pt-2 mt-2 border-t border-gray-600 city-list-no-break">
-                ${item.cities.join('　')} <!-- 読点(、)を全角スペース(　)に変更 -->
-            </p>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 
     // ラベルを '市区町村別' または '観測点別' に統一
     const modeLabel = DISPLAY_MODE === 'municipality' ? '市区町村別' : '観測点別'; 
