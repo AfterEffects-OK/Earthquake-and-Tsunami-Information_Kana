@@ -3725,7 +3725,8 @@ const updateFixedBarDisplay = (overrideView = null, direction = 'none') => {
     }
 
     // --- ナビゲーションボタンとページ情報の更新 ---
-    updateNavControls(currentView, overrideView);
+    // ★★★ 修正: overrideView を正しく渡す ★★★
+    updateNavControls(currentView, overrideView ? true : false);
 };
 
 /**
@@ -3792,9 +3793,9 @@ const updateNavControls = (currentView, overrideView) => {
         pageInfo.textContent = '地震 受信中';
         pageInfo.classList.remove('hidden');
     } else if (overrideView) {
-        // ★★★ 修正: currentViewが存在しないケースに対応 ★★★
+        // ★★★ 修正: currentViewが存在しない可能性があるため、存在チェックを追加 ★★★
         // システムメッセージ表示中はページ情報を書き換え (例: 地震情報 開始)
-        pageInfo.textContent = `${currentView.pageCurrent}${currentView.pageTotal}`;
+        pageInfo.textContent = (currentView && currentView.pageCurrent !== undefined) ? `${currentView.pageCurrent}${currentView.pageTotal}` : '';
         pageInfo.classList.remove('hidden');
     } else if (currentView.pageTotal > 1) {
         let pageHTML = `<span class="inline-block">${currentView.pageCurrent}/${currentView.pageTotal}</span>`;
