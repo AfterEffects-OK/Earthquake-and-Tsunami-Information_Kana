@@ -2652,20 +2652,8 @@ const fetchEarthquakeData = async () => {
         });
 
         const filteredEarthquakes = dummyData.filter(eq => eq.code === 551 && eq.earthquake && eq.earthquake.maxScale >= CONFIG.MIN_LIST_SCALE);
-        
-        // NEW: Filter dummy earthquakes for the current day
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); // 0-11
-        const currentDay = now.getDate();
 
-        const dailyDummyEarthquakes = filteredEarthquakes.filter(eq => {
-            const earthquakeDate = new Date(eq.earthquake.time);
-            return earthquakeDate.getFullYear() === currentYear &&
-                   earthquakeDate.getMonth() === currentMonth &&
-                   earthquakeDate.getDate() === currentDay;
-        });
-        PROCESSED_EARTHQUAKES = await Promise.all(dailyDummyEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+        PROCESSED_EARTHQUAKES = await Promise.all(filteredEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
         return PROCESSED_EARTHQUAKES;
     }
 
@@ -2764,10 +2752,10 @@ const fetchEarthquakeData = async () => {
         const uniqueEarthquakesMap = new Map();
         for (const eq of filteredEarthquakes) {
             // 発生時刻と震源地名から安定したイベントキーを生成
-            const eventTime = eq.earthquake?.time; // ★基準を地震発生時刻に変更
-            const epicenterName = eq.earthquake?.hypocenter?.name;
+            const eventTime = eq.earthquake?.time;
+            const epicenterName = eq.earthquake?.hypocenter?.name; // オプショナルチェイニングで安全にアクセス
 
-            // ID生成に必要な情報がなければスキップ
+            // ★★★ 修正: ID生成に必要な情報がなければスキップ ★★★
             if (!eventTime || !epicenterName) continue; 
 
             const eventKey = `${eventTime}_${epicenterName}`;
@@ -2800,22 +2788,9 @@ const fetchEarthquakeData = async () => {
         
         const uniqueEarthquakes = Array.from(uniqueEarthquakesMap.values());
 
-        // NEW: Filter earthquakes for the current day
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); // 0-11
-        const currentDay = now.getDate();
-
-        const dailyEarthquakes = uniqueEarthquakes.filter(eq => {
-            // eq.earthquake.time is in ISO 8601 format, e.g., "2025-01-01T12:00:00+09:00"
-            const earthquakeDate = new Date(eq.earthquake.time);
-            return earthquakeDate.getFullYear() === currentYear &&
-                   earthquakeDate.getMonth() === currentMonth &&
-                   earthquakeDate.getDate() === currentDay;
-        });
-
         // 処理済みのデータセットをグローバル変数に格納
-        PROCESSED_EARTHQUAKES = await Promise.all(dailyEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+        // ★★★ 修正: 当日フィルタリングを削除し、取得した全てのユニークな地震を処理対象とする ★★★
+        PROCESSED_EARTHQUAKES = await Promise.all(uniqueEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
 
         // 新しい地震データをスプレッドシートに記録
         if (PROCESSED_EARTHQUAKES.length > 0) {
@@ -2914,8 +2889,11 @@ const logPointsToSpreadsheet = (earthquakes) => {
 const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservationMap) => {
     // --- 安定したID生成ロジック ---
     const eqData = earthquake.earthquake;
-    const idSource = `${eqData.time}_${eqData.hypocenter.name}`; // ★基準を地震発生時刻に変更
+    // ★★★ 修正: hypocenterが存在しないケースに対応 ★★★
+    const epicenterName = eqData.hypocenter?.name || '不明';
+    const idSource = `${eqData.time}_${epicenterName}`;
     const syntheticId = await digestMessage(idSource);
+
     // -------------------------
 
     // API提供のeventidは津波情報の紐付けにのみ利用
@@ -3003,7 +2981,7 @@ const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservati
     return {
         id: syntheticId,
         time: formatDateTime(earthquake.earthquake.time), // ★表示も地震発生時刻に変更
-        epicenter: earthquake.earthquake.hypocenter.name || '不明',
+        epicenter: epicenterName, // ★★★ 修正 ★★★
         depth: earthquake.earthquake.hypocenter.depth, // 震源の深さを追加
         magnitude: magnitudeDisplay,
         tsunami: earthquake.earthquake.domesticTsunami, // 津波の有無を追加
@@ -3734,7 +3712,8 @@ const updateFixedBarDisplay = (overrideView = null, direction = 'none') => {
     }
 
     // --- ナビゲーションボタンとページ情報の更新 ---
-    updateNavControls(currentView, overrideView);
+    // ★★★ 修正: overrideView を正しく boolean に変換して渡す ★★★
+    updateNavControls(currentView, overrideView ? true : false);
 };
 
 /**
@@ -3799,9 +3778,11 @@ const updateNavControls = (currentView, overrideView) => {
         pageInfo.textContent = '地震 受信中';
         pageInfo.classList.remove('hidden');
     } else if (overrideView) {
-        // システムメッセージ表示中はページ情報を書き換え
+        // ★★★ 修正: currentViewが存在し、かつページ情報を持っている場合のみ表示する ★★★
+        if (currentView && currentView.pageCurrent !== undefined) {
         pageInfo.textContent = `${currentView.pageCurrent}${currentView.pageTotal}`;
         pageInfo.classList.remove('hidden');
+        }
     } else if (currentView.pageTotal > 1) {
         let pageHTML = `<span class="inline-block">${currentView.pageCurrent}/${currentView.pageTotal}</span>`;
         if (isAutoplaying) {
