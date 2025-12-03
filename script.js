@@ -3947,12 +3947,23 @@ const setupKanaDbModal = () => {
 
         keys.forEach(key => {
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'flex justify-between items-center p-2 border-b border-gray-700 text-sm';
+            // ★★★ 修正: クリックで編集できるようにUIを調整 ★★★
+            itemDiv.className = 'flex justify-between items-center p-2 border-b border-gray-700 text-sm cursor-pointer hover:bg-gray-700/50 transition-colors';
             itemDiv.innerHTML = `
                 <div class="flex-1 font-mono text-gray-300 mr-2">${key}</div>
-                <div class="flex-1 font-mono text-green-400 mr-4">${MANUAL_KANA_DICT[key]}</div>
+                <div class="flex-1 font-mono text-green-400 mr-4">${MANUAL_KANA_DICT[key] || '<span class="text-yellow-400">未入力</span>'}</div>
                 <button class="text-red-500 hover:text-red-400 font-bold text-xs">削除</button>
             `;
+
+            // ★★★ 追加: 削除ボタン以外の部分をクリックしたらフォームに内容をセットする ★★★
+            itemDiv.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'BUTTON') { // 削除ボタン自身がクリックされた場合は何もしない
+                    keyInput.value = key;
+                    valueInput.value = MANUAL_KANA_DICT[key];
+                    valueInput.focus(); // ふりがな入力欄にフォーカスを移動
+                }
+            });
+
             itemDiv.querySelector('button').addEventListener('click', () => {
                 delete MANUAL_KANA_DICT[key];
                 renderManualKanaList();
