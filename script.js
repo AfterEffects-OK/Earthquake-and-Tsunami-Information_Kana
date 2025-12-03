@@ -2651,9 +2651,21 @@ const fetchEarthquakeData = async () => {
             tsunamiObservationMap.set(eventId, { maxObservedHeight, stations });
         });
 
-        // 訓練データは全て表示対象とする
-        const dummyEarthquakes = dummyData.filter(eq => eq.code === 551 && eq.earthquake && eq.earthquake.maxScale >= CONFIG.MIN_LIST_SCALE);
-        PROCESSED_EARTHQUAKES = await Promise.all(dummyEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+        const filteredEarthquakes = dummyData.filter(eq => eq.code === 551 && eq.earthquake && eq.earthquake.maxScale >= CONFIG.MIN_LIST_SCALE);
+        
+        // NEW: Filter dummy earthquakes for the current day
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); // 0-11
+        const currentDay = now.getDate();
+
+        const dailyDummyEarthquakes = filteredEarthquakes.filter(eq => {
+            const earthquakeDate = new Date(eq.earthquake.time);
+            return earthquakeDate.getFullYear() === currentYear &&
+                   earthquakeDate.getMonth() === currentMonth &&
+                   earthquakeDate.getDate() === currentDay;
+        });
+        PROCESSED_EARTHQUAKES = await Promise.all(dailyDummyEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
         return PROCESSED_EARTHQUAKES;
     }
 
@@ -2752,10 +2764,10 @@ const fetchEarthquakeData = async () => {
         const uniqueEarthquakesMap = new Map();
         for (const eq of filteredEarthquakes) {
             // 発生時刻と震源地名から安定したイベントキーを生成
-            const eventTime = eq.earthquake?.time;
-            const epicenterName = eq.earthquake?.hypocenter?.name; // オプショナルチェイニングで安全にアクセス
+            const eventTime = eq.earthquake?.time; // ★基準を地震発生時刻に変更
+            const epicenterName = eq.earthquake?.hypocenter?.name;
 
-            // ★★★ 修正: ID生成に必要な情報がなければスキップ ★★★
+            // ID生成に必要な情報がなければスキップ
             if (!eventTime || !epicenterName) continue; 
 
             const eventKey = `${eventTime}_${epicenterName}`;
@@ -2788,9 +2800,22 @@ const fetchEarthquakeData = async () => {
         
         const uniqueEarthquakes = Array.from(uniqueEarthquakesMap.values());
 
+        // NEW: Filter earthquakes for the current day
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth(); // 0-11
+        const currentDay = now.getDate();
+
+        const dailyEarthquakes = uniqueEarthquakes.filter(eq => {
+            // eq.earthquake.time is in ISO 8601 format, e.g., "2025-01-01T12:00:00+09:00"
+            const earthquakeDate = new Date(eq.earthquake.time);
+            return earthquakeDate.getFullYear() === currentYear &&
+                   earthquakeDate.getMonth() === currentMonth &&
+                   earthquakeDate.getDate() === currentDay;
+        });
+
         // 処理済みのデータセットをグローバル変数に格納
-        // ★★★ 修正: 当日フィルタリングを削除し、取得した全てのユニークな地震を処理対象とする ★★★
-        PROCESSED_EARTHQUAKES = await Promise.all(uniqueEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+        PROCESSED_EARTHQUAKES = await Promise.all(dailyEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
 
         // 新しい地震データをスプレッドシートに記録
         if (PROCESSED_EARTHQUAKES.length > 0) {
@@ -2889,11 +2914,8 @@ const logPointsToSpreadsheet = (earthquakes) => {
 const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservationMap) => {
     // --- 安定したID生成ロジック ---
     const eqData = earthquake.earthquake;
-    // ★★★ 修正: hypocenterが存在しないケースに対応 ★★★
-    const epicenterName = eqData.hypocenter?.name || '不明';
-    const idSource = `${eqData.time}_${epicenterName}`;
+    const idSource = `${eqData.time}_${eqData.hypocenter.name}`; // ★基準を地震発生時刻に変更
     const syntheticId = await digestMessage(idSource);
-
     // -------------------------
 
     // API提供のeventidは津波情報の紐付けにのみ利用
@@ -2981,7 +3003,7 @@ const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservati
     return {
         id: syntheticId,
         time: formatDateTime(earthquake.earthquake.time), // ★表示も地震発生時刻に変更
-        epicenter: epicenterName, // ★★★ 修正 ★★★
+        epicenter: earthquake.earthquake.hypocenter.name || '不明',
         depth: earthquake.earthquake.hypocenter.depth, // 震源の深さを追加
         magnitude: magnitudeDisplay,
         tsunami: earthquake.earthquake.domesticTsunami, // 津波の有無を追加
@@ -3100,7 +3122,6 @@ const renderEarthquakeListItem = (eq) => {
 const displayEarthquakeDetails = (eq) => {
     const detailContainer = document.getElementById('detail-content');
     const detailTitle = document.getElementById('detail-panel-title');
-    const detailTitleKana = document.getElementById('detail-panel-title-kana');
     
     // データ存在の防御的チェック
     if (!eq || !eq.points) {
@@ -3114,7 +3135,6 @@ const displayEarthquakeDetails = (eq) => {
         console.error('Error: Earthquake data or points is missing.', eq);
         // 固定バーもクリア
         detailTitle.textContent = '地震詳細'; // タイトルをリセット
-        detailTitleKana.textContent = ''; // ふりがなもリセット
         updateFixedShindoBar(null);
         return;
     }
@@ -3126,9 +3146,6 @@ const displayEarthquakeDetails = (eq) => {
     } else {
         detailTitle.textContent = '地震詳細';
     }
-
-    // 震源地のふりがなを表示
-    detailTitleKana.textContent = getKana(eq.epicenter);
 
     // 現在のDISPLAY_MODEに基づいてデータをグループ化
     const shindoByMode = groupPointsByShindoAndMode(eq.points, DISPLAY_MODE, CONFIG.MIN_DETAIL_SCALE);
@@ -3148,7 +3165,7 @@ const displayEarthquakeDetails = (eq) => {
                 `;
             } else {
                 // 観測点モードの場合はこれまで通り
-                return `<span class="inline-block">${city}</span>`;
+                return `<span class="inline-block font-semibold">${city}</span>`;
             }
         }).join(DISPLAY_MODE === 'municipality' ? '' : '　');
 
@@ -3431,7 +3448,6 @@ const updateFixedShindoBar = (eq) => {
     }
     
     const contentLine1 = document.getElementById('content-line-1');
-    const contentLine1Kana = document.getElementById('content-line-1-kana');
     const shindoGroups = groupPointsByShindoAndMode(eq.points, 'municipality', loopPlaybackMinScale);
     FIXED_BAR_VIEWS = []; 
     
@@ -3456,10 +3472,10 @@ const updateFixedShindoBar = (eq) => {
     if (!doesTextFitInTwoLines(text1, contentLine1)) {
         const part1 = `${displayTime} ${eq.epicenter}を震源とする`;
         const part2 = `最大${eq.maxShindoLabel}の地震がありました`;
-        FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: part1, line1Kana: getKana(eq.epicenter), line2: '', shindoClass: 'bg-gray-500 text-white' });
-        FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: part2, line1Kana: '', line2: '', shindoClass: 'bg-gray-500 text-white' });
+        FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: part1, line2: '', shindoClass: 'bg-gray-500 text-white' });
+        FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: part2, line2: '', shindoClass: 'bg-gray-500 text-white' });
     } else {
-        FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: text1, line1Kana: getKana(eq.epicenter), line2: '', shindoClass: 'bg-gray-500 text-white' });
+        FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: text1, line2: '', shindoClass: 'bg-gray-500 text-white' });
     }
 
     // 1-2. 震源・マグニチュード情報のページ生成
@@ -3467,11 +3483,11 @@ const updateFixedShindoBar = (eq) => {
         const depthText = eq.depth === 0 ? ' ごく浅い　' : (eq.depth > 0 ? `およそ${eq.depth}km　` : '不明');
         const magnitudeText = `地震の規模は マグニチュード${eq.magnitude}`;
         const text2 = `震源の深さは${depthText}${magnitudeText}`;
-        if (!doesTextFitInTwoLines(text2, contentLine1)) { // ふりがな用のspanを考慮すると、この判定は不正確になる可能性があるが、一旦このまま
+        if (!doesTextFitInTwoLines(text2, contentLine1)) {
             const part1 = `震源の深さは${depthText.trim()}`;
             const part2 = magnitudeText;
-            FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: part1, line1Kana: '', line2: '', shindoClass: 'bg-gray-500 text-white' });
-            FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: part2, line1Kana: '', line2: '', shindoClass: 'bg-gray-500 text-white' });
+            FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: part1, line2: '', shindoClass: 'bg-gray-500 text-white' });
+            FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: part2, line2: '', shindoClass: 'bg-gray-500 text-white' });
         } else {
             FIXED_BAR_VIEWS.push({ type: 'summary', shindo: '概況', line1: text2, line2: '', shindoClass: 'bg-gray-500 text-white' });
         }
@@ -3515,7 +3531,6 @@ const updateFixedShindoBar = (eq) => {
             FIXED_BAR_VIEWS.push({
                 type: 'summary', // 概況と同じタイプ
                 shindo: badgeLabel,
-                line1Kana: '', // 津波情報にふりがなは不要
                 line1: tsunamiMessage,
                 line2: '',
                 shindoClass: badgeClass || 'bg-gray-500 text-white'
@@ -3531,16 +3546,16 @@ const updateFixedShindoBar = (eq) => {
             let pageAreas = [];
             for (let i = 0; i < areas.length; i++) {
                 const testAreas = [...pageAreas, areas[i]];
-                const testHtml = `<span class="text-xs text-gray-400 pr-2">${getKana(testAreas[0])}</span>${testAreas.join('　')}`;
+                const testHtml = `${testAreas.join('　')}`;
                 if (!doesTextFitInTwoLines(testHtml, contentLine1) && pageAreas.length > 0) {
-                    FIXED_BAR_VIEWS.push({ type: 'summary', shindo: title, line1: `${pageAreas.join('　')}`, line1Kana: pageAreas.map(getKana).join(' '), line2: '', shindoClass: `${badgeClass} tsunami-telop-badge` });
+                    FIXED_BAR_VIEWS.push({ type: 'summary', shindo: title, line1: `${pageAreas.join('　')}`, line2: '', shindoClass: `${badgeClass} tsunami-telop-badge` });
                     pageAreas = [areas[i]];
                 } else {
                     pageAreas.push(areas[i]);
                 }
             }
             if (pageAreas.length > 0) {
-                FIXED_BAR_VIEWS.push({ type: 'summary', shindo: title, line1: `${pageAreas.join('　')}`, line1Kana: pageAreas.map(getKana).join(' '), line2: '', shindoClass: `${badgeClass} tsunami-telop-badge` });
+                FIXED_BAR_VIEWS.push({ type: 'summary', shindo: title, line1: `${pageAreas.join('　')}`, line2: '', shindoClass: `${badgeClass} tsunami-telop-badge` });
             }
         };
 
@@ -3557,20 +3572,20 @@ const updateFixedShindoBar = (eq) => {
         for (const station of sortedStations) {
             const heightText = station.height >= 10 ? `${station.height.toFixed(1)}m以上` : `${station.height.toFixed(1)}m`;
             const stationText = `<span class="inline-block">${station.name} ${heightText}</span>`;
-            const testHtml = `<span class="text-xs text-gray-400 pr-2">${getKana(station.name)}</span>${[...pageStations, stationText].join('　')}`;
+            const testHtml = [...pageStations, stationText].join('　');
             if (!doesTextFitInTwoLines(testHtml, contentLine1) && pageStations.length > 0) {
-                FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: '津波観測中', line1: pageStations.join('　'), line1Kana: pageStations.map(s => getKana(s.name)).join(' '), line2: '', shindoClass: 'tsunami-observed' });
+                FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: '津波観測中', line1: pageStations.join('　'), line2: '', shindoClass: 'tsunami-observed' });
                 pageStations = [stationText];
             } else {
                 pageStations.push(stationText);
             }
         }
-        if (pageStations.length > 0) FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: '津波観測中', line1: pageStations.join('　'), line1Kana: pageStations.map(s => getKana(s.name)).join(' '), line2: '', shindoClass: 'tsunami-observed' });
+        if (pageStations.length > 0) FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: '津波観測中', line1: pageStations.join('　'), line2: '', shindoClass: 'tsunami-observed' });
     }
 
 
     // --- 4. 「各地の震度は〜」ページの生成 ---
-    const finalTextView = { type: 'summary', shindo: '震度情報', line1: '各地の震度は次のとおりです', line1Kana: '', line2: '', shindoClass: 'bg-gray-500 text-white' };
+    const finalTextView = { type: 'summary', shindo: '震度情報', line1: '各地の震度は次のとおりです', line2: '', shindoClass: 'bg-gray-500 text-white' };
     FIXED_BAR_VIEWS.push(finalTextView);
 
     // --- 5. 震度別地域ページの生成 (動的ページ分割) ---
@@ -3580,13 +3595,12 @@ const updateFixedShindoBar = (eq) => {
 
         for (let i = 0; i < cities.length; i++) {
             const testCities = [...pageCities, cities[i]];
-            const kanaHtml = testCities.map(getKana).join(' ');
-            const testHtml = `<span class="text-xs text-gray-400 pr-2">${kanaHtml}</span>` + testCities.map(c => `<span class="inline-block">${c}</span>`).join('　');
+            const testHtml = testCities.map(c => `<span class="inline-block">${c}</span>`).join('　');
 
             if (!doesTextFitInTwoLines(testHtml, contentLine1) && pageCities.length > 0) {
                 // 収まらなくなったので、直前までの内容でページを作成
                 const pageHtml = pageCities.map(c => `<span class="inline-block">${c}</span>`).join('　');
-                FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: group.shindo, line1: pageHtml, line1Kana: pageCities.map(getKana).join(' '), line2: '', shindoClass: shindoLabelToClass(group.shindo) });
+                FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: group.shindo, line1: pageHtml, line2: '', shindoClass: shindoLabelToClass(group.shindo) });
                 // 新しいページを開始
                 pageCities = [cities[i]];
             } else {
@@ -3596,7 +3610,7 @@ const updateFixedShindoBar = (eq) => {
         // ループ終了後、残りの市区町村で最後のページを作成
         if (pageCities.length > 0) {
             const pageHtml = pageCities.map(c => `<span class="inline-block">${c}</span>`).join('　');
-            FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: group.shindo, line1: pageHtml, line1Kana: pageCities.map(getKana).join(' '), line2: '', shindoClass: shindoLabelToClass(group.shindo) });
+            FIXED_BAR_VIEWS.push({ type: 'shindo', shindo: group.shindo, line1: pageHtml, line2: '', shindoClass: shindoLabelToClass(group.shindo) });
         }
     });
 
@@ -3628,8 +3642,7 @@ const updateFixedShindoBar = (eq) => {
     }
 
     // 表示エリアをクリア
-    contentLine1Kana.textContent = '';
-    line1.innerHTML = ''; // textContentからinnerHTMLに変更
+    line1.textContent = '';
     document.getElementById('content-line-2').textContent = '';
     currentShindoLabel.classList.add('hidden');
 };
@@ -3639,7 +3652,6 @@ const updateFixedShindoBar = (eq) => {
  */
 const displayInitialFixedBarState = () => {
     const line1 = document.getElementById('content-line-1');
-    const line1Kana = document.getElementById('content-line-1-kana');
     const line2 = document.getElementById('content-line-2');
     const currentShindoLabel = document.getElementById('current-shindo-label');
     const shindoNav = document.getElementById('shindo-nav');
@@ -3649,8 +3661,7 @@ const displayInitialFixedBarState = () => {
     const pageInfo = document.getElementById('shindo-page-info');
 
     // 変更: テキストとバッジを非表示にする
-    line1Kana.textContent = '';
-    line1.innerHTML = '<span id="content-line-1-kana" class="text-xs text-gray-400 pr-2"></span>地震を選択してください。';
+    line1.textContent = '';
     line2.textContent = '';
     currentShindoLabel.classList.add('hidden'); // バッジを隠す
     shindoNav.style.display = 'none';
@@ -3665,7 +3676,6 @@ const displayInitialFixedBarState = () => {
  */
 const displayFixedBarNoShindoData = () => {
      const line1 = document.getElementById('content-line-1');
-     const line1Kana = document.getElementById('content-line-1-kana');
      const line2 = document.getElementById('content-line-2');
      const currentShindoLabel = document.getElementById('current-shindo-label');
      const eq = PROCESSED_EARTHQUAKES.find(e => e.id === selectedCardId.substring(5));
@@ -3682,7 +3692,6 @@ const displayFixedBarNoShindoData = () => {
  */
 const updateFixedBarDisplay = (overrideView = null, direction = 'none') => {
     const line1 = document.getElementById('content-line-1');
-    const line1Kana = document.getElementById('content-line-1-kana');
     const line2 = document.getElementById('content-line-2');
     const animationWrapper = document.getElementById('animation-wrapper'); // キャッシュ
     const contentWrapper = document.getElementById('content-wrapper');     // キャッシュ
@@ -3690,11 +3699,9 @@ const updateFixedBarDisplay = (overrideView = null, direction = 'none') => {
     const nextButton = document.getElementById('shindo-next');           // キャッシュ
     const pageInfo = document.getElementById('shindo-page-info');        // キャッシュ
 
-    // ★★★ 修正: 古い変数名 `fixedBarState` を `FIXED_BAR_VIEWS` に修正 ★★★
-    if (FIXED_BAR_VIEWS.length === 0 && !overrideView) return;
+    if (fixedBarState.views.length === 0 && !overrideView) return;
 
-    // ★★★ 修正: 古い変数名 `fixedBarState` を `FIXED_BAR_VIEWS` と `CURRENT_SHINDO_INDEX` に修正 ★★★
-    const currentView = overrideView || FIXED_BAR_VIEWS[CURRENT_SHINDO_INDEX];
+    const currentView = overrideView || fixedBarState.views[fixedBarState.currentIndex];
 
     const transitionEffect = document.getElementById('transition-effect').value;
 
@@ -3725,8 +3732,7 @@ const updateFixedBarDisplay = (overrideView = null, direction = 'none') => {
     }
 
     // --- ナビゲーションボタンとページ情報の更新 ---
-    // ★★★ 修正: overrideView を正しく渡す ★★★
-    updateNavControls(currentView, overrideView ? true : false);
+    updateNavControls(currentView, overrideView);
 };
 
 /**
@@ -3734,7 +3740,6 @@ const updateFixedBarDisplay = (overrideView = null, direction = 'none') => {
  * @param {object} view - 表示するビューオブジェクト
  */
 const renderContent = (view) => {
-    const line1Kana = document.getElementById('content-line-1-kana');
     const line1 = document.getElementById('content-line-1');
     const line2 = document.getElementById('content-line-2');
     const currentShindoLabel = document.getElementById('current-shindo-label');
@@ -3754,7 +3759,6 @@ const renderContent = (view) => {
     }
     
     // コンテンツ行を更新
-    line1Kana.textContent = view.line1Kana || '';
     line1.innerHTML = view.line1;
     line2.textContent = view.line2;
 
@@ -3764,15 +3768,15 @@ const renderContent = (view) => {
     
     // タイプに応じたスタイル適用
     if(view.type === 'summary') {
-        line1.classList.add('text-4xl', 'font-bold', 'text-white', 'flex', 'items-center');
+        line1.classList.add('text-4xl', 'font-bold', 'text-white');
         line1.classList.remove('truncate');
         line2.classList.remove('hidden');
         line2.textContent = view.line2;
     } else if (view.type === 'shindo') {
-        line1.classList.add('text-4xl', 'font-bold', 'text-white', 'flex', 'items-center');
+        line1.classList.add('text-4xl', 'font-bold', 'text-white');
         line1.classList.remove('truncate');
     } else if (view.type === 'system') {
-        line1.classList.add('text-4xl', 'font-bold', 'text-white', 'text-center', 'flex', 'items-center', 'justify-center');
+        line1.classList.add('text-4xl', 'font-bold', 'text-white', 'text-center');
     }
 };
 
@@ -3793,9 +3797,8 @@ const updateNavControls = (currentView, overrideView) => {
         pageInfo.textContent = '地震 受信中';
         pageInfo.classList.remove('hidden');
     } else if (overrideView) {
-        // ★★★ 修正: currentViewが存在しない可能性があるため、存在チェックを追加 ★★★
-        // システムメッセージ表示中はページ情報を書き換え (例: 地震情報 開始)
-        pageInfo.textContent = (currentView && currentView.pageCurrent !== undefined) ? `${currentView.pageCurrent}${currentView.pageTotal}` : '';
+        // システムメッセージ表示中はページ情報を書き換え
+        pageInfo.textContent = `${currentView.pageCurrent}${currentView.pageTotal}`;
         pageInfo.classList.remove('hidden');
     } else if (currentView.pageTotal > 1) {
         let pageHTML = `<span class="inline-block">${currentView.pageCurrent}/${currentView.pageTotal}</span>`;
@@ -4105,8 +4108,7 @@ const startAutoplay = async () => {
 
                 // 指定秒数後に表示をクリアする
                 setTimeout(() => {
-                    document.getElementById('content-line-1-kana').textContent = '';
-                    document.getElementById('content-line-1').innerHTML = '';
+                    document.getElementById('content-line-1').textContent = '';
                     document.getElementById('current-shindo-label').classList.add('hidden');
                     pauseAutoplay(true); // 完全に停止状態に戻す
                 }, duration);
