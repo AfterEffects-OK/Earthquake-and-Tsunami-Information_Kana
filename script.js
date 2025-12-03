@@ -2651,21 +2651,9 @@ const fetchEarthquakeData = async () => {
             tsunamiObservationMap.set(eventId, { maxObservedHeight, stations });
         });
 
-        const filteredEarthquakes = dummyData.filter(eq => eq.code === 551 && eq.earthquake && eq.earthquake.maxScale >= CONFIG.MIN_LIST_SCALE);
-        
-        // NEW: Filter dummy earthquakes for the current day
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); // 0-11
-        const currentDay = now.getDate();
-
-        const dailyDummyEarthquakes = filteredEarthquakes.filter(eq => {
-            const earthquakeDate = new Date(eq.earthquake.time);
-            return earthquakeDate.getFullYear() === currentYear &&
-                   earthquakeDate.getMonth() === currentMonth &&
-                   earthquakeDate.getDate() === currentDay;
-        });
-        PROCESSED_EARTHQUAKES = await Promise.all(dailyDummyEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+        // 訓練データは全て表示対象とする
+        const dummyEarthquakes = dummyData.filter(eq => eq.code === 551 && eq.earthquake && eq.earthquake.maxScale >= CONFIG.MIN_LIST_SCALE);
+        PROCESSED_EARTHQUAKES = await Promise.all(dummyEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
         return PROCESSED_EARTHQUAKES;
     }
 
@@ -2800,22 +2788,9 @@ const fetchEarthquakeData = async () => {
         
         const uniqueEarthquakes = Array.from(uniqueEarthquakesMap.values());
 
-        // NEW: Filter earthquakes for the current day
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth(); // 0-11
-        const currentDay = now.getDate();
-
-        const dailyEarthquakes = uniqueEarthquakes.filter(eq => {
-            // eq.earthquake.time is in ISO 8601 format, e.g., "2025-01-01T12:00:00+09:00"
-            const earthquakeDate = new Date(eq.earthquake.time);
-            return earthquakeDate.getFullYear() === currentYear &&
-                   earthquakeDate.getMonth() === currentMonth &&
-                   earthquakeDate.getDate() === currentDay;
-        });
-
         // 処理済みのデータセットをグローバル変数に格納
-        PROCESSED_EARTHQUAKES = await Promise.all(dailyEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+        // ★★★ 修正: 当日フィルタリングを削除し、取得した全てのユニークな地震を処理対象とする ★★★
+        PROCESSED_EARTHQUAKES = await Promise.all(uniqueEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
 
         // 新しい地震データをスプレッドシートに記録
         if (PROCESSED_EARTHQUAKES.length > 0) {
