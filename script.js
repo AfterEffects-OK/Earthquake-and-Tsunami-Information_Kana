@@ -90,7 +90,7 @@ let loopPlaybackMinScale = 30; // デフォルトは震度3以上
  * "宮崎県_都農町": "つのちょう",
  * "福島県_伊達市": "だてし",
  */
-const MANUAL_KANA_DICT = {
+let MANUAL_KANA_DICT = {
     // ここに手動でふりがなを登録します
 };
 
@@ -98,7 +98,7 @@ const MANUAL_KANA_DICT = {
 /**
  * 漢字の地名から、ふりがな辞書を使って読み仮名を取得する
  * @param {string} kanji - 漢字の地名
- * @returns {string} 読み仮名（ひらがな）。辞書になければ空文字列を返す。
+ * @returns {string} 読み仮名（ひらがな）。辞書になければ空文字列を返す
  */
 const getKana = (kanji) => {
     if (!kanji) return '';
@@ -3860,6 +3860,88 @@ const setupFixedBarNavigation = () => {
 };
 
 /**
+ * 手動ふりがな辞書モーダルのセットアップ
+ */
+const setupKanaDbModal = () => {
+    const modal = document.getElementById('kana-db-modal');
+    const openButton = document.getElementById('kana-db-button');
+    const closeButton = document.getElementById('kana-db-modal-close');
+    const saveButton = document.getElementById('kana-db-modal-save');
+    const addButton = document.getElementById('add-kana-button');
+    const keyInput = document.getElementById('new-kana-key');
+    const valueInput = document.getElementById('new-kana-value');
+    const listWrapper = document.getElementById('manual-kana-list-wrapper');
+    const noDataMessage = document.getElementById('no-manual-kana-message');
+
+    // モーダルを開く
+    openButton.addEventListener('click', () => {
+        renderManualKanaList();
+        modal.classList.remove('hidden');
+    });
+
+    // モーダルを閉じる（保存しない）
+    closeButton.addEventListener('click', () => {
+        // 保存されていない変更を破棄するために、ローカルストレージから再読み込み
+        loadManualKanaDict(); 
+        modal.classList.add('hidden');
+    });
+
+    // 保存して閉じる
+    saveButton.addEventListener('click', () => {
+        localStorage.setItem('manualKanaDictionary', JSON.stringify(MANUAL_KANA_DICT));
+        modal.classList.add('hidden');
+        // 現在表示中の詳細を再描画して、ふりがなを即時反映
+        if (selectedCardId) {
+            const eventId = selectedCardId.substring(5);
+            const eqData = PROCESSED_EARTHQUAKES.find(eq => eq.id === eventId);
+            if (eqData) displayEarthquakeDetails(eqData);
+        }
+    });
+
+    // 新規追加・更新
+    addButton.addEventListener('click', () => {
+        const key = keyInput.value.trim();
+        const value = valueInput.value.trim();
+        if (key && value) {
+            MANUAL_KANA_DICT[key] = value;
+            keyInput.value = '';
+            valueInput.value = '';
+            renderManualKanaList();
+        }
+    });
+
+    // リストのレンダリング
+    const renderManualKanaList = () => {
+        // 子要素を全て削除（メッセージも含む）
+        while (listWrapper.firstChild) {
+            listWrapper.removeChild(listWrapper.firstChild);
+        }
+
+        const keys = Object.keys(MANUAL_KANA_DICT).sort();
+
+        if (keys.length === 0) {
+            listWrapper.appendChild(noDataMessage);
+            return;
+        }
+
+        keys.forEach(key => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'flex justify-between items-center p-2 border-b border-gray-700 text-sm';
+            itemDiv.innerHTML = `
+                <div class="flex-1 font-mono text-gray-300 mr-2">${key}</div>
+                <div class="flex-1 font-mono text-green-400 mr-4">${MANUAL_KANA_DICT[key]}</div>
+                <button class="text-red-500 hover:text-red-400 font-bold text-xs">削除</button>
+            `;
+            itemDiv.querySelector('button').addEventListener('click', () => {
+                delete MANUAL_KANA_DICT[key];
+                renderManualKanaList();
+            });
+            listWrapper.appendChild(itemDiv);
+        });
+    };
+};
+
+/**
  * 表示リセットボタンのセットアップ
  */
 const setupResetButton = () => {
@@ -4284,6 +4366,21 @@ const setupDummyDataToggle = () => {
     });
 };
 
+/**
+ * ローカルストレージから手動ふりがな辞書を読み込む
+ */
+const loadManualKanaDict = () => {
+    const savedDict = localStorage.getItem('manualKanaDictionary');
+    if (savedDict) {
+        try {
+            MANUAL_KANA_DICT = JSON.parse(savedDict);
+            console.log('手動ふりがな辞書を読み込みました。');
+        } catch (e) {
+            console.error('手動ふりがな辞書の読み込みに失敗しました:', e);
+        }
+    }
+};
+
 // --- 初期化 ---
 
 window.onload = async () => {
@@ -4316,6 +4413,12 @@ window.onload = async () => {
 
     // ショートカット設定モーダルのセットアップ
     setupShortcutModal();
+
+    // ★★★ 追加: 手動ふりがな辞書をローカルストレージから読み込む ★★★
+    loadManualKanaDict();
+
+    // ★★★ 追加: ふりがな辞書管理モーダルのセットアップ ★★★
+    setupKanaDbModal();
 
     // 初回表示: データを取得していない状態のメッセージを設定
     document.getElementById('fetch-time-display').textContent = '最終取得日時: データを取得していません';
