@@ -4492,10 +4492,6 @@ const loadManualKanaDict = () => {
 
 window.onload = async () => {
     // ★★★ 最初に読み仮名辞書を生成する ★★★
-    // 1. 手動登録辞書を最優先で検索
-    const manualKana = MANUAL_KANA_DICT[kanji];
-    if (manualKana) return manualKana;
-
     await buildKanaDictionary();
 
     // トグルスイッチの設定とイベントリスナーの設定
