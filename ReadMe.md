@@ -1,5 +1,5 @@
 # 地震・津波情報トラッカー 仕様書・操作マニュアル
-https://aftereffects-ok.github.io/Earthquake-and-Tsunami-Information/
+https://aftereffects-ok.github.io/Earthquake-and-Tsunami-Information_Kana/
 
 ## 1. アプリケーション概要
 
@@ -114,6 +114,7 @@ https://aftereffects-ok.github.io/Earthquake-and-Tsunami-Information/
     *   サマリー情報や観測地点リストがテキスト表示エリアの2行に収まらない場合、自動的に複数のページに分割して表示します。
 *   **設定の永続化**:
     *   「ショートカットキー」と「情報画面に表示する最低震度」の設定は、ブラウザのローカルストレージに保存され、次回アクセス時も維持されます。
+
 
 
 
