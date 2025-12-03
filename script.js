@@ -100,11 +100,15 @@ let kanaValueInput = null;
 
 /**
  * 漢字の地名から、ふりがな辞書を使って読み仮名を取得する
- * @param {string} kanji - 漢字の地名
+ * @param {string} kanji - 漢字の地名 ("都道府県名_市区町村名" の形式)
  * @returns {string} 読み仮名（ひらがな）。辞書になければ空文字列を返す
  */
 const getKana = (kanji) => {
     if (!kanji) return '';
+
+    // 1. 手動登録辞書を最優先で検索
+    const manualKana = MANUAL_KANA_DICT[kanji];
+    if (manualKana) return manualKana;
 
     // "都道府県名_市区町村名" の形式を想定
     const parts = kanji.split('_');
@@ -113,10 +117,6 @@ const getKana = (kanji) => {
     // 辞書検索
     const kana = KANA_DICT[municipality] || KANA_DICT[municipality.replace(/（.+?）/g, '')] || ''; // "（" 以降を削除しても検索
     return katakanaToHiragana(kana);
-
-    // 1. 手動登録辞書を最優先で検索
-    const manualKana = MANUAL_KANA_DICT[kanji];
-    if (manualKana) return manualKana;
 };
 
 // --- ユーティリティ関数と設定 ---
@@ -3995,6 +3995,12 @@ const setupKanaDbModal = () => {
     kanaKeyInput = keyInput;
     kanaValueInput = valueInput;
     
+    // ★★★ 修正: モーダルを開くイベントリスナーを追加 ★★★
+    openButton.addEventListener('click', () => {
+        renderManualKanaList();
+        modal.classList.remove('hidden');
+    });
+
     // モーダルを閉じる（保存しない）
     closeButton.addEventListener('click', () => {
         // 保存されていない変更を破棄するために、ローカルストレージから再読み込み
@@ -4519,12 +4525,6 @@ window.onload = async () => {
 
     // ショートカット設定モーダルのセットアップ
     setupShortcutModal();
-
-    // ★★★ 修正: getKana関数内の手動辞書検索ロジックを移動 ★★★
-    // getKana関数内でKANA_DICTが構築される前にMANUAL_KANA_DICTを参照すると問題があるため、
-    // KANA_DICT構築後に手動辞書検索ロジックを移動する。
-    // ただし、getKana関数は既に修正済みなので、このコメントは不要。
-    // 実際には、getKana関数はKANA_DICTとMANUAL_KANA_DICTの両方を参照できる状態になっている。
 
     // ★★★ 追加: 手動ふりがな辞書をローカルストレージから読み込む ★★★
     loadManualKanaDict();
