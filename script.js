@@ -3987,6 +3987,28 @@ const importKanaDictionaryFromFile = (file) => {
 };
 
 /**
+ * 気象庁の定義ファイルから生成したふりがな辞書をJSONファイルとしてエクスポートする
+ */
+const exportJmaKanaDictionaryToFile = () => {
+    // KANA_DICTが空の場合は警告を出す
+    if (Object.keys(KANA_DICT).length === 0) {
+        alert('気象庁のふりがな辞書がまだ生成されていません。ページをリロードして再試行してください。');
+        return;
+    }
+    const dataStr = JSON.stringify(KANA_DICT, null, 2); // 読みやすいように整形
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'jma_kana_dictionary.json'; // ファイル名
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log('気象庁のふりがな辞書をエクスポートしました。');
+};
+
+/**
  * 手動ふりがな辞書モーダルのセットアップ
  */
 const setupKanaDbModal = () => {
@@ -4041,10 +4063,13 @@ const setupKanaDbModal = () => {
     
     // ★★★ 追加: エクスポート・インポートボタンのイベントリスナー ★★★
     const exportButton = document.getElementById('export-kana-button');
+    const exportJmaButton = document.getElementById('export-jma-kana-button'); // ★★★ 追加 ★★★
     const importButton = document.getElementById('import-kana-button');
     const importFileInput = document.getElementById('import-kana-file-input');
 
     exportButton.addEventListener('click', exportKanaDictionaryToFile);
+
+    exportJmaButton.addEventListener('click', exportJmaKanaDictionaryToFile); // ★★★ 追加 ★★★
 
     importButton.addEventListener('click', () => {
         importFileInput.click(); // 隠されたファイル入力要素をクリック
