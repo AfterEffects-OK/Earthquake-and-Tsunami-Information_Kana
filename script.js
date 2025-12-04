@@ -2705,18 +2705,35 @@ const fetchEarthquakeData = async () => {
     errorElement.classList.add('hidden');
     
     try {
-        // 震度情報(551)、津波予報(552)、津波観測情報(556)を1回のリクエストでまとめて取得
-        const codesToFetch = '551,552,556';
-        const apiUrl = `${CONFIG.API_URL}&codes=${codesToFetch}`;
+        // 震度情報(551)、津波予報(552)、津波観測情報(556)を個別にリクエスト
+        const urls = [
+            `${CONFIG.API_URL}&codes=551`, // 震度情報
+            `${CONFIG.API_URL}&codes=552`, // 津波予報
+            `${CONFIG.API_URL}&codes=556`  // 津波観測情報
+        ];
 
-        const response = await fetch(apiUrl);
+        // Promise.allSettledを使い、一部のリクエスト失敗時も処理を継続
+        const results = await Promise.allSettled(urls.map(url => fetch(url)));
 
-        if (!response.ok) {
-            // response.statusText もエラーメッセージに含めると、より詳細な情報が得られる場合があります。
-            throw new Error(`HTTPエラー: ${response.status} ${response.statusText}`);
+        let data = [];
+        for (const result of results) {
+            if (result.status === 'fulfilled') {
+                const response = result.value;
+                if (response.ok) {
+                    const json = await response.json();
+                    // 取得したデータが配列であることを確認して結合
+                    if (Array.isArray(json)) {
+                        data = data.concat(json);
+                    }
+                } else {
+                    // レスポンスがエラーでも処理は止めず、コンソールに警告を出す
+                    console.warn(`APIからのデータ取得に一部失敗しました: ${response.status} ${response.statusText}`);
+                }
+            } else {
+                // fetch自体が失敗した場合 (ネットワークエラーなど)
+                console.error('APIへのリクエストに失敗しました:', result.reason);
+            }
         }
-        
-        const data = await response.json();
 
         // --- 1. 津波情報(552)を先に処理し、event_idごとに最高の警報レベルをマップに保存 ---
         const tsunamiDetailsMap = new Map();
