@@ -2828,9 +2828,9 @@ const fetchEarthquakeData = async () => {
         
         const uniqueEarthquakes = Array.from(uniqueEarthquakesMap.values());
 
-        // 処理済みのデータセットをグローバル変数に格納
-        // ★★★ 修正: 当日フィルタリングを削除し、取得した全てのユニークな地震を処理対象とする ★★★
-        PROCESSED_EARTHQUAKES = await Promise.all(uniqueEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+        // 取得した全てのユニークな地震を処理対象とする
+        const processedEarthquakes = await Promise.all(uniqueEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+
 
         // 新しい地震データをスプレッドシートに記録
         if (PROCESSED_EARTHQUAKES.length > 0) {
