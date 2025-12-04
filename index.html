@@ -102,62 +102,63 @@
     <!-- === 新規追加: 配信画面用の固定震度表示バー === -->
     <div id="fixed-shindo-bar" class="fixed bottom-0 left-0 right-0 shadow-2xl z-50 h-32 p-2">
         <div class="flex h-full items-center justify-between">
-            
+
             <!-- 左: ステータス/切り替えボタン (背景色設定用のラッパーを追加) -->
-            <div id="shindo-status-wrapper" class="h-full flex items-start flex-shrink-0 pt-2 pl-2 relative">
-                <div class="flex flex-col justify-center space-y-0.5 w-full">
-                    <!-- 自動ページ送りコントロール -->
-                    <div id="autoplay-controls" class="flex items-center space-x-2" style="display: none;">
-                        <div class="flex items-center space-x-1">
-                            <input type="number" id="autoplay-duration" value="10" min="1" class="autoplay-input w-12 text-center text-sm p-1">
-                            <span class="text-xs text-gray-400">秒</span>
+            <div id="shindo-status-wrapper" class="h-full flex items-start flex-shrink-0 pt-2 pl-2 relative w-full">
+                <div class="flex justify-between items-start w-full">
+                    <div class="flex flex-col justify-center space-y-0.5">
+                        <!-- 自動ページ送りコントロール -->
+                        <div id="autoplay-controls" class="flex items-center space-x-2" style="display: none;">
+                            <div class="flex items-center space-x-1">
+                                <input type="number" id="autoplay-duration" value="10" min="1" class="autoplay-input w-12 text-center text-sm p-1">
+                                <span class="text-xs text-gray-400">秒</span>
+                            </div>
+                            <div class="flex items-center space-x-1">
+                                <select id="autoplay-loops" class="autoplay-input text-sm p-1">
+                                    <!-- ループ回数オプションはJSで生成 -->
+                                </select>
+                                <span class="text-xs text-gray-400">回</span>
+                            </div>
                         </div>
-                        <div class="flex items-center space-x-1">
-                            <select id="autoplay-loops" class="autoplay-input text-sm p-1">
-                                <!-- ループ回数オプションはJSで生成 -->
-                            </select>
-                            <span class="text-xs text-gray-400">回</span>
+    
+                        <!-- ナビゲーションボタン -->
+                        <div id="shindo-nav" class="flex items-center justify-between" style="display: none;">
+                            <div class="flex items-center space-x-1">
+                                <button id="shindo-prev" class="text-white hover:text-blue-300 transition p-1 rounded-full bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed" title="前のページへ">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                </button>
+                                <span id="shindo-page-info" class="text-sm text-gray-400 font-mono w-20 text-center"></span>
+                                <button id="shindo-next" class="text-white hover:text-blue-300 transition p-1 rounded-full bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed" title="次のページへ">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                            </div>
+                            <button id="autoplay-toggle" class="text-white hover:text-blue-300 transition p-1 rounded-full bg-gray-700 hover:bg-gray-600" title="自動ページ送りを再生/停止">
+                                <!-- 再生アイコン -->
+                                <svg id="play-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path></svg>
+                                <!-- 停止アイコン -->
+                                <svg id="pause-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M5 5h10v10H5z"></path></svg>
+                            </button>
+                        </div>
+    
+                        <!-- トランジション設定 -->
+                        <div id="transition-controls" class="flex items-center space-x-2" style="display: none;" title="ページの切り替え効果を選択します">
+                            <select id="transition-effect" class="autoplay-input text-sm p-1">
+                                <option value="cut" selected>カット</option>
+                                <option value="slide">スライド</option>                            </select>
+                            <!-- 表示リセットボタンをトランジション設定の隣に移動 -->
+                            <button id="reset-display-button" class="bg-red-900 hover:bg-red-800 text-white font-semibold py-1 px-4 rounded-lg shadow transition duration-150 text-sm" style="display: none;" title="表示をリセットします">
+                                リセット
+                            </button>
                         </div>
                     </div>
-
-                    <!-- ナビゲーションボタン -->
-                    <div id="shindo-nav" class="flex items-center justify-between" style="display: none;">
-                        <div class="flex items-center space-x-1">
-                            <button id="shindo-prev" class="text-white hover:text-blue-300 transition p-1 rounded-full bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed" title="前のページへ">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                            </button>
-                            <span id="shindo-page-info" class="text-sm text-gray-400 font-mono w-20 text-center"></span>
-                            <button id="shindo-next" class="text-white hover:text-blue-300 transition p-1 rounded-full bg-gray-700 hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed" title="次のページへ">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                            </button>
-                        </div>
-                        <button id="autoplay-toggle" class="text-white hover:text-blue-300 transition p-1 rounded-full bg-gray-700 hover:bg-gray-600" title="自動ページ送りを再生/停止">
-                            <!-- 再生アイコン -->
-                            <svg id="play-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path></svg>
-                            <!-- 停止アイコン -->
-                            <svg id="pause-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M5 5h10v10H5z"></path></svg>
+                    <div class="flex items-center space-x-1">
+                        <button id="kana-db-button" class="p-1 text-gray-400 hover:text-white transition" title="手動ふりがな辞書を編集します">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        </button>
+                        <button id="shortcut-settings-button" class="p-1 text-gray-400 hover:text-white transition" title="再生/停止のショートカットキーを設定します">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                         </button>
                     </div>
-
-                    <!-- トランジション設定 -->
-                    <div id="transition-controls" class="flex items-center space-x-2" style="display: none;" title="ページの切り替え効果を選択します">
-                        <select id="transition-effect" class="autoplay-input text-sm p-1">
-                            <option value="cut" selected>カット</option>
-                            <option value="slide">スライド</option>
-                        </select>
-                        <!-- 表示リセットボタンをトランジション設定の隣に移動 -->
-                        <button id="reset-display-button" class="bg-red-900 hover:bg-red-800 text-white font-semibold py-1 px-4 rounded-lg shadow transition duration-150 text-sm" style="display: none;" title="表示をリセットします">
-                            リセット
-                        </button>
-                    </div>
-                </div>
-                <div class="absolute top-1 right-1 flex space-x-1">
-                    <button id="kana-db-button" class="p-1 text-gray-400 hover:text-white transition" title="手動ふりがな辞書を編集します">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                    </button>
-                    <button id="shortcut-settings-button" class="p-1 text-gray-400 hover:text-white transition" title="再生/停止のショートカットキーを設定します">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    </button>
                 </div>
             </div>
 
@@ -247,9 +248,9 @@
 
             <div class="flex justify-between items-center mt-6 flex-shrink-0">
                 <div class="flex flex-col space-y-2">
-                    <button id="export-kana-button" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">手動登録辞書をエクスポート</button>
+                    <button id="export-kana-button" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">手動ふりがな辞書をエクスポート</button>
                     <input type="file" id="import-kana-file-input" class="hidden" accept=".json">
-                    <button id="import-kana-button" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">手動登録辞書をインポート</button>
+                    <button id="import-kana-button" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">手動ふりがな辞書をインポート</button>
                     <!-- (既存の「手動辞書をエクスポート」ボタンの近くに追加することを推奨します) -->
                     <button id="export-jma-kana-button" class="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-md hover:bg-teal-700 transition-colors">気象庁自治体辞書を出力</button>
                 </div>
