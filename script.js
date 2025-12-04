@@ -2705,31 +2705,18 @@ const fetchEarthquakeData = async () => {
     errorElement.classList.add('hidden');
     
     try {
-        // 震度情報(551)と津波情報(552)を別々にリクエスト
-        const url551 = `${CONFIG.API_URL}&codes=551`;
-        const url552 = `${CONFIG.API_URL}&codes=552`;
-        const url556 = `${CONFIG.API_URL}&codes=556`; // 津波観測情報
+        // 震度情報(551)、津波予報(552)、津波観測情報(556)を1回のリクエストでまとめて取得
+        const codesToFetch = '551,552,556';
+        const apiUrl = `${CONFIG.API_URL}&codes=${codesToFetch}`;
 
-        const [response551, response552, response556] = await Promise.all([
-            fetch(url551),
-            fetch(url552),
-            fetch(url556)
-        ]);
+        const response = await fetch(apiUrl);
 
-        if (!response551.ok) {
-            throw new Error(`HTTPエラー (震度情報): ${response551.status}`);
-        }
-        if (!response552.ok) {
-            throw new Error(`HTTPエラー (津波情報): ${response552.status}`);
-        }
-        if (!response556.ok) {
-            throw new Error(`HTTPエラー (津波観測情報): ${response556.status}`);
+        if (!response.ok) {
+            // response.statusText もエラーメッセージに含めると、より詳細な情報が得られる場合があります。
+            throw new Error(`HTTPエラー: ${response.status} ${response.statusText}`);
         }
         
-        const data551 = await response551.json();
-        const data552 = await response552.json();
-        const data556 = await response556.json();
-        const data = [...data551, ...data552, ...data556];
+        const data = await response.json();
 
         // --- 1. 津波情報(552)を先に処理し、event_idごとに最高の警報レベルをマップに保存 ---
         const tsunamiDetailsMap = new Map();
