@@ -106,9 +106,10 @@ let kanaValueInput = null;
 const getKana = (kanji) => {
     if (!kanji) return '';
 
-    // 1. 手動登録辞書を最優先で検索
-    const manualKana = MANUAL_KANA_DICT[kanji];
-    if (manualKana) return manualKana;
+    // 1. 手動登録辞書を最優先で検索。キーが存在すれば、その値（空文字列を含む）を返す
+    if (MANUAL_KANA_DICT.hasOwnProperty(kanji)) {
+        return MANUAL_KANA_DICT[kanji];
+    }
 
     // "都道府県名_市区町村名" の形式を想定
     const parts = kanji.split('_');
