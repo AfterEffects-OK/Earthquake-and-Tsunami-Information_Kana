@@ -124,6 +124,7 @@ const getKana = (kanji) => {
 const CONFIG = {
     // P2P地震情報 API v2のエンドポイント (地震情報コード551は「震源・震度情報」)
     API_URL: 'https://api.p2pquake.net/v2/history?limit=100',
+    API_URL: 'https://api.p2pquake.net/v2/history?limit=1000',
     
     // 地震一覧に表示する地震の「最大」震度の最低ライン (30: 震度3)
     MIN_LIST_SCALE: 30,
@@ -2828,9 +2829,8 @@ const fetchEarthquakeData = async () => {
         
         const uniqueEarthquakes = Array.from(uniqueEarthquakesMap.values());
 
-        // 処理済みのデータセットをグローバル変数に格納
-        // ★★★ 修正: 当日フィルタリングを削除し、取得した全てのユニークな地震を処理対象とする ★★★
-        PROCESSED_EARTHQUAKES = await Promise.all(uniqueEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
+        // 取得した全てのユニークな地震を処理対象とする
+        const processedEarthquakes = await Promise.all(uniqueEarthquakes.map(eq => processEarthquake(eq, tsunamiDetailsMap, tsunamiObservationMap)));
 
         // 新しい地震データをスプレッドシートに記録
         if (PROCESSED_EARTHQUAKES.length > 0) {
@@ -3488,7 +3488,9 @@ const updateFixedShindoBar = (eq) => {
     }
     
     const contentLine1 = document.getElementById('content-line-1');
-    const shindoGroups = groupPointsByShindoAndMode(eq.points, 'municipality', loopPlaybackMinScale);
+    // ★★★ 修正: ループ再生設定(loopPlaybackMinScale)に関わらず、全ての震度情報をページ生成の対象とする ★★★
+    // これにより、最大震度が3未満でもフッターナビゲーションが表示されるようになる
+    const shindoGroups = groupPointsByShindoAndMode(eq.points, 'municipality', 10); // 震度1以上を対象
     FIXED_BAR_VIEWS = []; 
     
     // --- 1. 概況ページの生成 (指定箇所での分割ロジック) ---
@@ -3625,8 +3627,10 @@ const updateFixedShindoBar = (eq) => {
 
 
     // --- 4. 「各地の震度は〜」ページの生成 ---
-    const finalTextView = { type: 'summary', shindo: '震度情報', line1: '各地の震度は次のとおりです', line2: '', shindoClass: 'bg-gray-500 text-white' };
-    FIXED_BAR_VIEWS.push(finalTextView);
+    if (shindoGroups.length > 0) {
+        const finalTextView = { type: 'summary', shindo: '震度情報', line1: '各地の震度は次のとおりです', line2: '', shindoClass: 'bg-gray-500 text-white' };
+        FIXED_BAR_VIEWS.push(finalTextView);
+    }
 
     // --- 5. 震度別地域ページの生成 (動的ページ分割) ---
     shindoGroups.forEach(group => {
