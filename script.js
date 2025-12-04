@@ -2778,14 +2778,13 @@ const fetchEarthquakeData = async () => {
         // 「イベントキー」を元に重複排除・集約
         const uniqueEarthquakesMap = new Map();
         for (const eq of filteredEarthquakes) {
-            // 発生時刻と震源地名から安定したイベントキーを生成
+            // ★★★ 修正: hypocenterが存在しない場合も考慮 ★★★
             const eventTime = eq.earthquake?.time;
-            const epicenterName = eq.earthquake?.hypocenter?.name; // オプショナルチェイニングで安全にアクセス
-
-            // ★★★ 修正: ID生成に必要な情報がなければスキップ ★★★
-            if (!eventTime || !epicenterName) continue; 
-
-            const eventKey = `${eventTime}_${epicenterName}`;
+            const epicenterName = eq.earthquake?.hypocenter?.name;
+ 
+            if (!eventTime || !epicenterName) continue; // ID生成に必要な情報がなければスキップ
+ 
+            const eventKey = `${eventTime}_${epicenterName}`; // 発生時刻と震源地名から安定したイベントキーを生成
 
             if (uniqueEarthquakesMap.has(eventKey)) {
                 // 既に同じ地震イベントが存在する場合、情報をマージする
@@ -2794,8 +2793,8 @@ const fetchEarthquakeData = async () => {
                 if (!existingEq.points && eq.points) { // 既存にpointsがなく、新しい方にあれば
                     uniqueEarthquakesMap.set(eventKey, eq); // 新しい情報で上書きする
                 }
-                // 震源情報がより詳細なら更新する（マグニチュードが不明から判明した場合など）
-                if ((existingEq.earthquake.hypocenter.magnitude === -1 || existingEq.earthquake.hypocenter.magnitude === null) && (eq.earthquake.hypocenter.magnitude !== -1 && eq.earthquake.hypocenter.magnitude !== null)) {
+                // ★★★ 修正: hypocenterが存在しない場合も考慮 ★★★
+                if (eq.earthquake?.hypocenter && (existingEq.earthquake.hypocenter.magnitude === -1 || existingEq.earthquake.hypocenter.magnitude === null) && (eq.earthquake.hypocenter.magnitude !== -1 && eq.earthquake.hypocenter.magnitude !== null)) {
                     existingEq.earthquake.hypocenter = eq.earthquake.hypocenter;
                 }
                 // 最大震度が更新された場合
@@ -2929,7 +2928,7 @@ const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservati
     const tsunamiObservationData = tsunamiObservationMap.get(eventId);
     const detailedTsunamiGrade = tsunamiData ? tsunamiData.highestGrade : earthquake.earthquake.domesticTsunami;
     
-    // 発表されている全ての津波情報をバッジとして保持する
+    // ★★★ 修正: tsunamiDataが存在しない場合も考慮 ★★★
     const tsunamiBadges = [];
     if (tsunamiData) {
         if (tsunamiData.areas.MajorWarning?.size > 0) {
@@ -2977,7 +2976,7 @@ const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservati
     } : null;
 
     // レポートに基づきマグニチュードの取得方法を修正
-    const magValue = earthquake.earthquake?.hypocenter?.magnitude;
+    const magValue = eqData.hypocenter?.magnitude;
     const magnitudeDisplay = (magValue !== undefined && magValue !== null && !isNaN(magValue)) 
         ? parseFloat(magValue).toFixed(1) 
         : '不明';
@@ -3009,7 +3008,7 @@ const processEarthquake = async (earthquake, tsunamiDetailsMap, tsunamiObservati
         id: syntheticId,
         time: formatDateTime(earthquake.earthquake.time), // ★表示も地震発生時刻に変更
         epicenter: epicenterName, // ★★★ 修正 ★★★
-        depth: earthquake.earthquake.hypocenter.depth, // 震源の深さを追加
+        depth: eqData.hypocenter?.depth, // ★★★ 修正: 震源の深さを追加 (Optional Chaining) ★★★
         magnitude: magnitudeDisplay,
         tsunami: earthquake.earthquake.domesticTsunami, // 津波の有無を追加
         tsunamiLabel: tsunamiLabelForGas, // ★★★ GAS送信用に追加 ★★★
