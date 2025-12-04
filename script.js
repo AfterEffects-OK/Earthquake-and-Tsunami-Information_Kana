@@ -3626,11 +3626,11 @@ const updateFixedShindoBar = (eq) => {
     }
 
 
-    // --- 4. 「各地の震度は〜」ページの生成 ---
-    if (shindoGroups.length > 0) {
-        const finalTextView = { type: 'summary', shindo: '震度情報', line1: '各地の震度は次のとおりです', line2: '', shindoClass: 'bg-gray-500 text-white' };
-        FIXED_BAR_VIEWS.push(finalTextView);
-    }
+    // --- 4. 「各地の震度は〜」ページの生成 (震度情報ページが存在する場合のみ) ---
+    // ★★★ 修正: 震度情報ページが生成される場合にのみ、この案内ページを挿入する ★★★
+    // これにより、震度情報がない場合でも概況ページが複数あればナビゲーションが表示されるようになる
+    const finalTextView = { type: 'summary', shindo: '震度情報', line1: '各地の震度は次のとおりです', line2: '', shindoClass: 'bg-gray-500 text-white' };
+    FIXED_BAR_VIEWS.push(finalTextView);
 
     // --- 5. 震度別地域ページの生成 (動的ページ分割) ---
     shindoGroups.forEach(group => {
