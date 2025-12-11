@@ -337,13 +337,17 @@ const getMunicipality = (addr, pref) => {
 const handleEew = (eewData) => {
     const container = document.getElementById('eew-alert-container');
     const alertTextElement = document.getElementById('eew-alert-text');
-    if (!container || !alertTextElement) return;
+    // エラー防止: 必要なDOM要素と、eewDataにearthquakeオブジェクトが存在することを確認
+    if (!container || !alertTextElement || !eewData.earthquake) return;
 
     // 既に表示中のアラートがあれば何もしない
     if (!container.classList.contains('hidden')) return;
 
-    const maxScale = scaleToShindo(eewData.earthquake.maxScale).label;
-    const hypocenter = eewData.earthquake.hypocenter.name;
+    // エラー防止: maxScale, hypocenter, magnitude が存在しない場合に備える
+    const maxScaleValue = eewData.earthquake.maxScale;
+    const maxScale = (maxScaleValue !== undefined && maxScaleValue !== null) ? scaleToShindo(maxScaleValue).label : '不明';
+
+    const hypocenter = eewData.earthquake.hypocenter?.name || '震源情報なし';
     const magnitude = eewData.earthquake.magnitude;
 
     let alertText = `【緊急地震速報】 ${hypocenter}で地震発生`;
@@ -2846,7 +2850,7 @@ const fetchEarthquakeData = async () => {
 
         // 最大震度3以上の地震のみをフィルタリング (CONFIG.MIN_LIST_SCALEを使用)
         const filteredEarthquakes = data.filter(eq => 
-            eq.earthquake && eq.earthquake.maxScale >= CONFIG.MIN_LIST_SCALE
+            eq.code === 551 && eq.earthquake && typeof eq.earthquake.maxScale === 'number' && eq.earthquake.maxScale >= CONFIG.MIN_LIST_SCALE
         );
 
         // 「イベントキー」を元に重複排除・集約
