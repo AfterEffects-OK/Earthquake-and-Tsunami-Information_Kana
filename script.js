@@ -82,6 +82,11 @@ let loopPlaybackMinScale = 30; // デフォルトは震度3以上
 // --- EEW通知音設定用のグローバル変数 ---
 let playEewSound = true; // デフォルトはON
 let eewAudioObject = null; // プリロード用のAudioオブジェクト
+// --- 連続EEW対応用のグローバル変数 ---
+let eewQueue = []; // 表示すべきEEW情報を保持するキュー
+let eewDisplayIntervalId = null; // EEWを10秒ごとに切り替えるためのタイマーID
+let eewClearTimeoutId = null; // 60秒後にEEW表示をすべてクリアするためのタイマーID
+let currentEewIndex = 0; // 現在表示しているEEWのインデックス
 
 
 /**
@@ -337,13 +342,8 @@ const getMunicipality = (addr, pref) => {
  * @param {object} eewData - APIから取得したEEWのデータ (code: 554)
  */
 const handleEew = (eewData) => {
-    const container = document.getElementById('eew-alert-container');
-    const alertTextElement = document.getElementById('eew-alert-text');
     // エラー防止: 必要なDOM要素と、eewDataにearthquakeオブジェクトが存在することを確認
-    if (!container || !alertTextElement || !eewData.earthquake) return;
-
-    // 既に表示中のアラートがあれば何もしない
-    if (!container.classList.contains('hidden')) return;
+    if (!eewData.earthquake) return;
 
     // エラー防止: maxScale, hypocenter, magnitude が存在しない場合に備える
     const maxScaleValue = eewData.earthquake.maxScale;
@@ -359,10 +359,6 @@ const handleEew = (eewData) => {
     if (magnitude > 0) {
         alertText += ` M${magnitude}`;
     }
-
-    alertTextElement.textContent = alertText;
-    container.classList.remove('hidden');
-    container.classList.add('flex'); // flexを追加して表示
 
     // 設定が有効な場合、通知音を再生
     if (playEewSound && eewAudioObject) {
@@ -390,15 +386,64 @@ const handleEew = (eewData) => {
         playSound(); // 1回目の再生を開始
     }
 
+    // --- 連続EEW対応: キューに情報を追加 ---
+    // 既に同じIDのEEWがキューにあれば追加しない
+    if (eewQueue.some(e => e.id === eewData.id)) {
+        return;
+    }
 
-    // 60秒後にアラートを非表示にする
-    setTimeout(() => {
-        container.classList.add('hidden');
-        container.classList.remove('flex');
-        alertTextElement.textContent = '';
+    eewQueue.push({ id: eewData.id, text: alertText, data: eewData });
+    // 新しいEEWが追加されるたびに表示サイクルを開始（またはタイマーをリセット）する
+    startEewDisplayCycle();
+};
+
+/**
+ * EEWアラートの表示サイクルを開始・管理する
+ */
+const startEewDisplayCycle = () => {
+    const container = document.getElementById('eew-alert-container');
+    const alertTextElement = document.getElementById('eew-alert-text');
+    if (!container || !alertTextElement) return;
+
+    // 既存のタイマーをクリア（表示切り替えタイマーは、キューが1つの場合はリセットしない）
+    if (eewQueue.length > 1 && eewDisplayIntervalId) clearInterval(eewDisplayIntervalId);
+    if (eewClearTimeoutId) clearTimeout(eewClearTimeoutId);
+
+    currentEewIndex = 0;
+
+    // 最初の情報をすぐに表示
+    if (eewQueue.length > 0) {
+        alertTextElement.textContent = eewQueue[0].text;
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+    }
+
+    // 10秒ごとに表示を切り替えるタイマーを設定（まだ設定されていなければ）
+    if (!eewDisplayIntervalId) {
+        eewDisplayIntervalId = setInterval(() => {
+            if (eewQueue.length > 1) {
+                currentEewIndex = (currentEewIndex + 1) % eewQueue.length;
+                alertTextElement.textContent = eewQueue[currentEewIndex].text;
+            }
+        }, 10000);
+    }
+
+    // 60秒後にすべてをクリアするタイマーを設定
+    eewClearTimeoutId = setTimeout(() => {
+        stopEewDisplayCycle();
     }, 60000);
 };
 
+/**
+ * EEWアラートの表示サイクルを停止し、初期状態に戻す
+ */
+const stopEewDisplayCycle = () => {
+    clearInterval(eewDisplayIntervalId);
+    eewDisplayIntervalId = null; // タイマーIDをリセット
+    clearTimeout(eewClearTimeoutId);
+    eewQueue = [];
+    document.getElementById('eew-alert-container').classList.add('hidden');
+};
 
 
 // --- データ取得と処理ロジック ---
