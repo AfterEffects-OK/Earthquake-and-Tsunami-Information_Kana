@@ -393,6 +393,28 @@ const fetchEarthquakeData = async () => {
         console.warn("★★★ 訓練モード有効 ★★★ ダミーデータを使用しています。テスト後は USE_DUMMY_DATA を false に戻してください。");
         const dummyData = [
             // --- 訓練用の大正関東大震災データ (code: 551) ---
+        // --- 【新規追加】訓練用の緊急地震速報(EEW)データ (code: 554) ---
+        {
+            "code": 554,
+            "issue": {
+                "source": "気象庁",
+                "time": "2025/12/25 12:00:00",
+                "type": "ScalePrompt",
+                "event_id": "20251225120000"
+            },
+            "earthquake": {
+                "time": "2025-12-25T12:00:00+09:00",
+                "hypocenter": {
+                    "name": "東京湾",
+                    "latitude": 35.5,
+                    "longitude": 139.8,
+                    "depth": 30,
+                    "magnitude": 7.1
+                },
+                "maxScale": 60, // 震度6強
+                "domesticTsunami": "Warning"
+            }
+        },
             {
                 "code": 551,
                 "issue": {
@@ -710,6 +732,28 @@ const fetchEarthquakeData = async () => {
                         { "grade": "Advisory", "area": { "name": "佐賀県北部" } },
                         { "grade": "Advisory", "area": { "name": "長崎県壱岐・対馬" } },
                     ]
+                }
+            },
+            // --- 【新規追加】訓練用の東日本大震災EEWデータ (code: 554) ---
+            {
+                "code": 554,
+                "issue": {
+                    "source": "気象庁",
+                    "time": "2011/03/11 14:46:30",
+                    "type": "ScalePrompt",
+                    "event_id": "20110311144600"
+                },
+                "earthquake": {
+                    "time": "2011-03-11T14:46:00+09:00",
+                    "hypocenter": {
+                        "name": "三陸沖",
+                        "latitude": 38.1,
+                        "longitude": 142.9,
+                        "depth": 24,
+                        "magnitude": 9.0
+                    },
+                    "maxScale": 70, // 震度7
+                    "domesticTsunami": "MajorWarning"
                 }
             },
             // --- 訓練用の震源・震度情報 (code: 551) ---
@@ -2744,6 +2788,16 @@ const fetchEarthquakeData = async () => {
             });
             tsunamiObservationMap.set(eventId, { maxObservedHeight, stations });
         });
+
+        // ★★★ 修正: 訓練モードでもEEWを処理する ★★★
+        // 訓練データに含まれる全てのEEW(554)を候補として取得
+        const eewCandidates = dummyData.filter(item => item.code === 554);
+        if (eewCandidates.length > 0) {
+            // 複数のEEW候補からランダムで1つを選択して表示
+            const randomIndex = Math.floor(Math.random() * eewCandidates.length);
+            const randomEew = eewCandidates[randomIndex];
+            handleEew(randomEew);
+        }
 
         const filteredEarthquakes = dummyData.filter(eq => eq.code === 551 && eq.earthquake && eq.earthquake.maxScale >= CONFIG.MIN_LIST_SCALE);
 
