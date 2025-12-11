@@ -81,6 +81,8 @@ let loopPlaybackMinScale = 30; // デフォルトは震度3以上
 // ------------------------------------
 // --- EEW通知音設定用のグローバル変数 ---
 let playEewSound = true; // デフォルトはON
+let eewAudioObject = null; // プリロード用のAudioオブジェクト
+
 
 /**
  * 手動でふりがなを登録するための辞書（データベース）
@@ -363,12 +365,29 @@ const handleEew = (eewData) => {
     container.classList.add('flex'); // flexを追加して表示
 
     // 設定が有効な場合、通知音を再生
-    if (playEewSound) {
-        const eewSound = new Audio('https://github.com/AfterEffects-OK/EarthquakeEarlyWarning/raw/refs/heads/main/EEW_Woman_2.aac');
-        eewSound.play().catch(error => {
-            // ブラウザの自動再生ポリシーにより、ユーザーの操作なしでは再生できない場合がある
-            console.warn('EEW通知音の再生に失敗しました。ブラウザの自動再生ポリシーによる可能性があります。', error);
-        });
+    if (playEewSound && eewAudioObject) {
+        let playCount = 0;
+        const maxPlayCount = 2; // 再生回数を2回に設定
+
+        const playSound = () => {
+            eewAudioObject.currentTime = 0; // 再生位置を最初に戻す
+            eewAudioObject.play().catch(error => {
+                console.warn(`EEW通知音の再生に失敗しました (${playCount + 1}回目):`, error);
+            });
+        };
+
+        const onSoundEnded = () => {
+            playCount++;
+            if (playCount < maxPlayCount) {
+                playSound(); // 次の再生を実行
+            } else {
+                eewAudioObject.removeEventListener('ended', onSoundEnded); // 2回再生が終わったらリスナーを削除
+            }
+        };
+
+        eewAudioObject.removeEventListener('ended', onSoundEnded); // 念のため既存のリスナーを削除
+        eewAudioObject.addEventListener('ended', onSoundEnded);
+        playSound(); // 1回目の再生を開始
     }
 
 
@@ -4674,11 +4693,22 @@ const loadManualKanaDict = () => {
     }
 };
 
+/**
+ * EEW音声ファイルをプリロードする
+ */
+const preloadEewSound = () => {
+    eewAudioObject = new Audio('https://github.com/AfterEffects-OK/EarthquakeEarlyWarning/raw/refs/heads/main/EEW_Woman_2.aac');
+    eewAudioObject.preload = 'auto'; // ブラウザに音声のプリロードを指示
+    eewAudioObject.load(); // 明示的にロードを開始
+    console.log('EEW音声ファイルのプリロードを開始しました。');
+};
+
 // --- 初期化 ---
 
 window.onload = async () => {
     // ★★★ 最初に読み仮名辞書を生成する ★★★
     await buildKanaDictionary();
+    preloadEewSound(); // EEW音声ファイルをプリロード
 
     // トグルスイッチの設定とイベントリスナーの設定
     setupToggle(); 
