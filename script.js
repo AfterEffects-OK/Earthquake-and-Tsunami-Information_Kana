@@ -79,6 +79,8 @@ let shortcutSetting = {
 // --- ループ再生設定用のグローバル変数 ---
 let loopPlaybackMinScale = 30; // デフォルトは震度3以上
 // ------------------------------------
+// --- EEW通知音設定用のグローバル変数 ---
+let playEewSound = true; // デフォルトはON
 
 /**
  * 手動でふりがなを登録するための辞書（データベース）
@@ -327,6 +329,53 @@ const getMunicipality = (addr, pref) => {
     // どのパターンにもマッチしない場合は、元の観測点名を返す
     return `${pref}_${addr}`;
 };
+
+/**
+ * 緊急地震速報(EEW)を処理し、アラートを表示する
+ * @param {object} eewData - APIから取得したEEWのデータ (code: 554)
+ */
+const handleEew = (eewData) => {
+    const container = document.getElementById('eew-alert-container');
+    const alertTextElement = document.getElementById('eew-alert-text');
+    if (!container || !alertTextElement) return;
+
+    // 既に表示中のアラートがあれば何もしない
+    if (!container.classList.contains('hidden')) return;
+
+    const maxScale = scaleToShindo(eewData.earthquake.maxScale).label;
+    const hypocenter = eewData.earthquake.hypocenter.name;
+    const magnitude = eewData.earthquake.magnitude;
+
+    let alertText = `【緊急地震速報】 ${hypocenter}で地震発生`;
+    if (maxScale !== '震度不明') {
+        alertText += ` 予想最大震度 ${maxScale}`;
+    }
+    if (magnitude > 0) {
+        alertText += ` M${magnitude}`;
+    }
+
+    alertTextElement.textContent = alertText;
+    container.classList.remove('hidden');
+    container.classList.add('flex'); // flexを追加して表示
+
+    // 設定が有効な場合、通知音を再生
+    if (playEewSound) {
+        const eewSound = new Audio('https://github.com/AfterEffects-OK/EarthquakeEarlyWarning/raw/refs/heads/main/EEW_Woman_2.aac');
+        eewSound.play().catch(error => {
+            // ブラウザの自動再生ポリシーにより、ユーザーの操作なしでは再生できない場合がある
+            console.warn('EEW通知音の再生に失敗しました。ブラウザの自動再生ポリシーによる可能性があります。', error);
+        });
+    }
+
+
+    // 60秒後にアラートを非表示にする
+    setTimeout(() => {
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+        alertTextElement.textContent = '';
+    }, 60000);
+};
+
 
 
 // --- データ取得と処理ロジック ---
@@ -2710,7 +2759,8 @@ const fetchEarthquakeData = async () => {
         const urls = [
             `${CONFIG.API_URL}&codes=551`, // 震度情報
             `${CONFIG.API_URL}&codes=552`, // 津波予報
-            `${CONFIG.API_URL}&codes=556`  // 津波観測情報
+            `${CONFIG.API_URL}&codes=556`, // 津波観測情報
+            `${CONFIG.API_URL}&codes=554`  // 緊急地震速報(予報)
         ];
 
         // Promise.allSettledを使い、一部のリクエスト失敗時も処理を継続
@@ -2734,6 +2784,12 @@ const fetchEarthquakeData = async () => {
                 // fetch自体が失敗した場合 (ネットワークエラーなど)
                 console.error('APIへのリクエストに失敗しました:', result.reason);
             }
+        }
+
+        // --- 緊急地震速報(554)をチェック ---
+        const eewInfo = data.find(item => item.code === 554);
+        if (eewInfo) {
+            handleEew(eewInfo);
         }
 
         // --- 1. 津波情報(552)を先に処理し、event_idごとに最高の警報レベルをマップに保存 ---
@@ -4126,6 +4182,14 @@ const setupKeyboardShortcuts = () => {
         }
     }
 
+    // 保存されたEEW通知音設定を読み込む
+    const savedEewSoundSetting = localStorage.getItem('playEewSound');
+    if (savedEewSoundSetting !== null) {
+        playEewSound = savedEewSoundSetting === 'true';
+    } else {
+        playEewSound = true; // 保存された設定がなければデフォルトで有効
+    }
+
     window.addEventListener('keydown', (event) => {
         // テキスト入力中などはショートカットを無効にする
         if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT') {
@@ -4160,11 +4224,13 @@ const setupShortcutModal = () => {
     const input = document.getElementById('shortcut-modal-input');
     const saveButton = document.getElementById('shortcut-modal-save');
     const minScaleSelect = document.getElementById('loop-min-shindo-select');
+    const eewSoundToggle = document.getElementById('eew-sound-toggle');
 
     openButton.addEventListener('click', () => {
         modal.classList.remove('hidden');
         // 現在の設定値をUIに反映
         input.value = formatShortcutText(shortcutSetting);
+        eewSoundToggle.checked = playEewSound;
         minScaleSelect.value = loopPlaybackMinScale;
         input.focus();
     });
@@ -4195,6 +4261,8 @@ const setupShortcutModal = () => {
         localStorage.setItem('autoplayShortcut', JSON.stringify(shortcutSetting));
         loopPlaybackMinScale = parseInt(minScaleSelect.value, 10);
         localStorage.setItem('loopPlaybackMinScale', loopPlaybackMinScale);
+        playEewSound = eewSoundToggle.checked;
+        localStorage.setItem('playEewSound', playEewSound);
 
         // 現在選択されている地震の表示を新しい設定で更新する
         if (selectedCardId) {
