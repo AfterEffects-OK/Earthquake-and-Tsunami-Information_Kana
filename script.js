@@ -544,6 +544,28 @@ const fetchEarthquakeData = async () => {
                     ]
                 }
             },
+            // --- 【新規追加】訓練用の南海トラフ地震EEWデータ (code: 554) ---
+            {
+                "code": 554,
+                "issue": {
+                    "source": "気象庁",
+                    "time": "2025/01/02 09:00:30",
+                    "type": "ScalePrompt",
+                    "event_id": "20250102090000"
+                },
+                "earthquake": {
+                    "time": "2025-01-02T09:00:00+09:00",
+                    "hypocenter": {
+                        "name": "南海トラフ",
+                        "latitude": 33.0,
+                        "longitude": 135.0,
+                        "depth": 30,
+                        "magnitude": 9.1
+                    },
+                    "maxScale": 70, // 震度7
+                    "domesticTsunami": "MajorWarning"
+                }
+            },
                                   // --- 訓練用の南海トラフ地震データ (code: 551) ---
             {
                 "code": 551,
