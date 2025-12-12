@@ -4368,12 +4368,14 @@ const setupShortcutModal = () => {
     const input = document.getElementById('shortcut-modal-input');
     const saveButton = document.getElementById('shortcut-modal-save');
     const minScaleSelect = document.getElementById('loop-min-shindo-select');
+    const listMinScaleSelect = document.getElementById('list-min-shindo-select');
     const eewSoundToggle = document.getElementById('eew-sound-toggle');
 
     openButton.addEventListener('click', () => {
         modal.classList.remove('hidden');
         // 現在の設定値をUIに反映
         input.value = formatShortcutText(shortcutSetting);
+        listMinScaleSelect.value = CONFIG.MIN_LIST_SCALE;
         eewSoundToggle.checked = playEewSound;
         minScaleSelect.value = loopPlaybackMinScale;
         input.focus();
@@ -4405,6 +4407,8 @@ const setupShortcutModal = () => {
         localStorage.setItem('autoplayShortcut', JSON.stringify(shortcutSetting));
         loopPlaybackMinScale = parseInt(minScaleSelect.value, 10);
         localStorage.setItem('loopPlaybackMinScale', loopPlaybackMinScale);
+        CONFIG.MIN_LIST_SCALE = parseInt(listMinScaleSelect.value, 10);
+        localStorage.setItem('listMinScale', CONFIG.MIN_LIST_SCALE);
         playEewSound = eewSoundToggle.checked;
         localStorage.setItem('playEewSound', playEewSound);
 
@@ -4417,6 +4421,9 @@ const setupShortcutModal = () => {
                 updateFixedShindoBar(eqData);
             }
         }
+
+        // 設定変更を即時反映するためにデータを再取得・描画
+        refreshData();
 
         closeModal();
     });
@@ -4754,6 +4761,12 @@ window.onload = async () => {
     // ★★★ 最初に読み仮名辞書を生成する ★★★
     await buildKanaDictionary();
     preloadEewSound(); // EEW音声ファイルをプリロード
+
+    // 保存された一覧フィルター設定を読み込む
+    const savedListMinScale = localStorage.getItem('listMinScale');
+    if (savedListMinScale) {
+        CONFIG.MIN_LIST_SCALE = parseInt(savedListMinScale, 10);
+    }
 
     // トグルスイッチの設定とイベントリスナーの設定
     setupToggle(); 
